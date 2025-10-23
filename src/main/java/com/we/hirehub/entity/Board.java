@@ -43,6 +43,7 @@ public class Board {
 
     // 조회수
     @Column(nullable = false, columnDefinition = "BIGINT DEFAULT 0")
+    @Builder.Default
     private Long views = 0L;
 
 }
