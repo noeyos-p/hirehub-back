@@ -49,6 +49,10 @@ public class JobPosts {
     @Column(nullable = false)
     private String education;
 
+    // 직무
+    @Column(nullable = false)
+    private String position;
+
     // 고용형태
     @Column(nullable = false)
     private String type;
