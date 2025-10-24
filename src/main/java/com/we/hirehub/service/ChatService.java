@@ -2,8 +2,8 @@ package com.we.hirehub.service;
 
 import com.we.hirehub.entity.LiveChat;
 import com.we.hirehub.entity.Session;
-import com.we.hirehub.repo.LiveChatRepository;
-import com.we.hirehub.repo.SessionRepository;
+import com.we.hirehub.repository.LiveChatRepository;
+import com.we.hirehub.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;

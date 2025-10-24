@@ -4,13 +4,11 @@ import com.we.hirehub.dto.SignupEmailRequest;
 import com.we.hirehub.dto.SignupRequest;   // 기존(풀 온보딩용) DTO
 import com.we.hirehub.entity.Role;
 import com.we.hirehub.entity.Users;
-import com.we.hirehub.repo.UsersRepository;
+import com.we.hirehub.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
 
 @Service
 @RequiredArgsConstructor

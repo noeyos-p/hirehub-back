@@ -2,7 +2,7 @@ package com.we.hirehub.service;
 
 import com.we.hirehub.dto.OnboardingForm;
 import com.we.hirehub.entity.Users;
-import com.we.hirehub.repo.UsersRepository;
+import com.we.hirehub.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
