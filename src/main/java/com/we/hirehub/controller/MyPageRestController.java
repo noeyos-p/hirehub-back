@@ -9,14 +9,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/mypage") // 원 경로 고정
+@RequestMapping("/api/mypage")
 public class MyPageRestController {
 
     private final MyPageService myPageService;
 
-    /** JWT 기반: SecurityContext의 Principal에서 userId 추출 */
     private Long userId(Authentication auth) {
         if (auth == null) {
             auth = SecurityContextHolder.getContext().getAuthentication();
@@ -36,7 +37,6 @@ public class MyPageRestController {
 
     // ====== 이력서 CRUD ======
 
-    // 목록: GET /api/mypage/resumes?page=0&size=10
     @GetMapping("/resumes")
     public PagedResponse<ResumeDto> list(Authentication auth,
                                          @RequestParam(defaultValue = "0") int page,
@@ -44,19 +44,16 @@ public class MyPageRestController {
         return myPageService.list(userId(auth), page, size);
     }
 
-    // 단건: GET /api/mypage/resumes/{resumeId}
     @GetMapping("/resumes/{resumeId}")
     public ResumeDto get(Authentication auth, @PathVariable Long resumeId) {
         return myPageService.get(userId(auth), resumeId);
     }
 
-    // 생성: POST /api/mypage/resumes
     @PostMapping("/resumes")
     public ResumeDto create(Authentication auth, @Valid @RequestBody ResumeUpsertRequest req) {
         return myPageService.create(userId(auth), req);
     }
 
-    // 수정: PUT /api/mypage/resumes/{resumeId}
     @PutMapping("/resumes/{resumeId}")
     public ResumeDto update(Authentication auth,
                             @PathVariable Long resumeId,
@@ -64,25 +61,29 @@ public class MyPageRestController {
         return myPageService.update(userId(auth), resumeId, req);
     }
 
-    // 삭제: DELETE /api/mypage/resumes/{resumeId}
     @DeleteMapping("/resumes/{resumeId}")
     public ResponseEntity<Void> delete(Authentication auth, @PathVariable Long resumeId) {
         myPageService.delete(userId(auth), resumeId);
-        return ResponseEntity.noContent().build(); // 204
+        return ResponseEntity.noContent().build();
     }
 
-    // ====== 내 프로필 조회/수정 (이메일 제외 수정 가능) ======
+    // ====== 내 프로필 조회/수정 ======
 
-    /** 내 프로필 조회 */
     @GetMapping("/me")
     public ResponseEntity<MyProfileDto> getMe(Authentication auth) {
         return ResponseEntity.ok(myPageService.getProfile(userId(auth)));
     }
 
-    /** 내 프로필 수정 (이메일 제외, null 아닌 필드만 부분 업데이트) */
     @PutMapping("/me")
     public ResponseEntity<MyProfileDto> updateMe(Authentication auth,
                                                  @RequestBody MyProfileUpdateRequest req) {
         return ResponseEntity.ok(myPageService.updateProfile(userId(auth), req));
+    }
+
+    // ====== 지원내역 조회 (Read Only) ======
+
+    @GetMapping("/applies")
+    public ResponseEntity<List<ApplyResponse>> getMyApplies(Authentication auth) {
+        return ResponseEntity.ok(myPageService.getMyApplyList(userId(auth)));
     }
 }
