@@ -1,10 +1,12 @@
 package com.we.hirehub.service;
 
 import com.we.hirehub.dto.*;
+import com.we.hirehub.entity.Apply;
 import com.we.hirehub.entity.Resume;
 import com.we.hirehub.entity.Users;
 import com.we.hirehub.exception.ForbiddenEditException;
 import com.we.hirehub.exception.ResourceNotFoundException;
+import com.we.hirehub.repository.ApplyRepository;
 import com.we.hirehub.repository.ResumeRepository;
 import com.we.hirehub.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,6 +28,9 @@ public class MyPageService {
 
     private final ResumeRepository resumeRepository;
     private final UserRepository userRepository;
+    private final ApplyRepository applyRepository; // ✅ 지원내역용
+
+    // ====== 이력서 CRUD ======
 
     public PagedResponse<ResumeDto> list(Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updateAt"));
@@ -67,7 +73,6 @@ public class MyPageService {
         Resume resume = resumeRepository.findByIdAndUsers_Id(resumeId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("이력서를 찾을 수 없습니다."));
 
-        // 제출(잠금)된 이력서 수정 금지
         if (resume.isLocked() || resumeRepository.existsByIdAndUsers_IdAndLockedTrue(resumeId, userId)) {
             throw new ForbiddenEditException("이미 제출된 이력서는 수정할 수 없습니다.");
         }
@@ -88,7 +93,6 @@ public class MyPageService {
         Resume resume = resumeRepository.findByIdAndUsers_Id(resumeId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("이력서를 찾을 수 없습니다."));
 
-        // 제출(잠금)된 이력서 삭제 금지 (정책 동일 적용)
         if (resume.isLocked() || resumeRepository.existsByIdAndUsers_IdAndLockedTrue(resumeId, userId)) {
             throw new ForbiddenEditException("이미 제출된 이력서는 삭제할 수 없습니다.");
         }
@@ -109,44 +113,39 @@ public class MyPageService {
         );
     }
 
-    /** 내 프로필 조회 */
+    // ====== 프로필 관련 ======
+
     public MyProfileDto getProfile(Long userId) {
         Users u = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
 
-        // MyProfileDto가 롬복 @Data 형태라고 가정 (세터 존재)
         MyProfileDto dto = new MyProfileDto();
-        BeanUtils.copyProperties(u, dto); // Users → DTO 동일명 필드 일괄 복사(없으면 무시)
+        BeanUtils.copyProperties(u, dto);
         return dto;
     }
 
-    /** 내 프로필 수정(이메일 제외, null 아닌 필드만 부분 업데이트) */
     @Transactional
     public MyProfileDto updateProfile(Long userId, MyProfileUpdateRequest req) {
         Users u = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
 
-        // 부분 업데이트: req의 null이 아닌 필드만 Users에 반영
         BeanWrapper target = new BeanWrapperImpl(u);
         BeanWrapper source = new BeanWrapperImpl(req);
 
         for (var pd : source.getPropertyDescriptors()) {
             String name = pd.getName();
             if ("class".equals(name)) continue;
-            if ("email".equalsIgnoreCase(name)) continue;          // 이메일은 무조건 제외
-            if (!target.isWritableProperty(name)) continue;        // Users에 동일 필드 없으면 skip
+            if ("email".equalsIgnoreCase(name)) continue;
+            if (!target.isWritableProperty(name)) continue;
 
             Object val = source.getPropertyValue(name);
             if (val != null) {
                 try {
                     target.setPropertyValue(name, val);
-                } catch (Exception ignore) {
-                    // 타입 안 맞거나 변환 불가 시 안전하게 skip (필요하면 매핑표에 추가해 수동 변환)
-                }
+                } catch (Exception ignore) {}
             }
         }
 
-        // 업데이트 시각 필드가 있으면 갱신
         if (target.isWritableProperty("updateAt")) {
             target.setPropertyValue("updateAt", java.time.LocalDate.now());
         } else if (target.isWritableProperty("updatedAt")) {
@@ -158,5 +157,20 @@ public class MyPageService {
         MyProfileDto dto = new MyProfileDto();
         BeanUtils.copyProperties(saved, dto);
         return dto;
+    }
+
+    // ====== 지원내역 조회 (R 기능만) ======
+
+    public List<ApplyResponse> getMyApplyList(Long userId) {
+        List<Apply> applies = applyRepository.findByResume_Users_Id(userId);
+
+        return applies.stream()
+                .map(a -> new ApplyResponse(
+                        a.getId(),
+                        a.getJobPosts().getCompany().getName(),  // ✅ jobPosts 엔티티 안의 회사명
+                        a.getResume().getTitle(),          // ✅ 연결된 이력서 제목
+                        a.getApplyAt()                     // ✅ LocalDate applyAt
+                ))
+                .collect(Collectors.toList());
     }
 }

@@ -2,9 +2,14 @@ package com.we.hirehub.controller;
 
 import com.we.hirehub.config.JwtTokenProvider;
 import com.we.hirehub.dto.LoginRequest;
+import com.we.hirehub.dto.SignupEmailRequest;
+import com.we.hirehub.dto.SignupRequest;
 import com.we.hirehub.entity.Users;
 import com.we.hirehub.repository.UsersRepository;
+import com.we.hirehub.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,6 +26,8 @@ public class AuthRestController {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider tokenProvider;
     private final UsersRepository usersRepository;
+    private final AuthService authService;
+
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody LoginRequest request) {
@@ -36,7 +43,16 @@ public class AuthRestController {
                 "tokenType", "Bearer",
                 "accessToken", accessToken
         ));
+
+
     }
+
+    @PostMapping("/signup")
+    public ResponseEntity<Void> signup(@Valid @RequestBody SignupEmailRequest request) {
+        authService.signupMinimal(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> me(java.security.Principal principal) {
@@ -44,4 +60,6 @@ public class AuthRestController {
                 ? ResponseEntity.status(401).body(Map.of("error","UNAUTHORIZED","message","인증이 필요합니다."))
                 : ResponseEntity.ok(Map.of("name", principal.getName()));
     }
+
+
 }
