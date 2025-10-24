@@ -2,13 +2,12 @@ package com.we.hirehub.service;
 
 import com.we.hirehub.dto.*;
 import com.we.hirehub.entity.Apply;
+import com.we.hirehub.entity.FavoriteCompany;
 import com.we.hirehub.entity.Resume;
 import com.we.hirehub.entity.Users;
 import com.we.hirehub.exception.ForbiddenEditException;
 import com.we.hirehub.exception.ResourceNotFoundException;
-import com.we.hirehub.repository.ApplyRepository;
-import com.we.hirehub.repository.ResumeRepository;
-import com.we.hirehub.repository.UserRepository;
+import com.we.hirehub.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeanWrapper;
@@ -28,9 +27,12 @@ public class MyPageService {
 
     private final ResumeRepository resumeRepository;
     private final UserRepository userRepository;
-    private final ApplyRepository applyRepository; // ✅ 지원내역용
+    private final ApplyRepository applyRepository;                 // ✅ 기존
+    private final FavoriteCompanyRepository favoriteCompanyRepository; // ⭐ 추가
+    private final JobPostsRepository jobPostsRepository;               // ⭐ 추가
+    private final CompanyRepository companyRepository;                 // (선택) 이름 기반이 필요할 때
 
-    // ====== 이력서 CRUD ======
+    // ====== 이력서 CRUD (기존 유지) ======
 
     public PagedResponse<ResumeDto> list(Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updateAt"));
@@ -113,7 +115,7 @@ public class MyPageService {
         );
     }
 
-    // ====== 프로필 관련 ======
+    // ====== 프로필 (기존 유지) ======
 
     public MyProfileDto getProfile(Long userId) {
         Users u = userRepository.findById(userId)
@@ -159,7 +161,7 @@ public class MyPageService {
         return dto;
     }
 
-    // ====== 지원내역 조회 (R 기능만) ======
+    // ====== 지원내역 조회 (기존 유지) ======
 
     public List<ApplyResponse> getMyApplyList(Long userId) {
         List<Apply> applies = applyRepository.findByResume_Users_Id(userId);
@@ -167,10 +169,67 @@ public class MyPageService {
         return applies.stream()
                 .map(a -> new ApplyResponse(
                         a.getId(),
-                        a.getJobPosts().getCompany().getName(),  // ✅ jobPosts 엔티티 안의 회사명
-                        a.getResume().getTitle(),          // ✅ 연결된 이력서 제목
-                        a.getApplyAt()                     // ✅ LocalDate applyAt
+                        a.getJobPosts().getCompany().getName(),
+                        a.getResume().getTitle(),
+                        a.getApplyAt()
                 ))
                 .collect(Collectors.toList());
+    }
+
+    // ====== ⭐ 신규: 관심 기업 ======
+
+    /** 관심 기업 목록(회사명 + 회사 공고 수) */
+    public PagedResponse<FavoriteCompanySummaryDto> listFavoriteCompanies(Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
+        Page<FavoriteCompany> p = favoriteCompanyRepository.findByUsers_Id(userId, pageable);
+
+        var items = p.getContent().stream()
+                .map(fc -> new FavoriteCompanySummaryDto(
+                        fc.getId(),
+                        fc.getCompany().getId(),
+                        fc.getCompany().getName(),
+                        jobPostsRepository.countByCompany_Id(fc.getCompany().getId())
+                ))
+                .collect(Collectors.toList());
+
+        return new PagedResponse<>(items, p.getNumber(), p.getSize(), p.getTotalElements(), p.getTotalPages());
+    }
+
+    /** 관심 기업 추가(중복 시 기존 유지) */
+//    @Transactional
+//    public FavoriteCompanySummaryDto addFavoriteCompany(Long userId, Long companyId) {
+//        Users user = userRepository.findById(userId)
+//                .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
+//
+//        var company = companyRepository.findById(companyId)
+//                .orElseThrow(() -> new ResourceNotFoundException("회사를 찾을 수 없습니다."));
+//
+//        // 이미 즐겨찾기면 그대로 반환
+//        var exist = favoriteCompanyRepository.findByUsers_IdAndCompany_Id(userId, companyId);
+//        if (exist.isPresent()) {
+//            var fc = exist.get();
+//            long cnt = jobPostsRepository.countByCompany_Id(companyId);
+//            return new FavoriteCompanySummaryDto(fc.getId(), companyId, company.getName(), cnt);
+//        }
+//
+//        // ✅ 익명서브클래스 금지. 일반 인스턴스로 생성해서 저장
+//        FavoriteCompany fc = new FavoriteCompany();
+//        fc.setUsers(user);
+//        fc.setCompany(company);
+//
+//        FavoriteCompany saved = favoriteCompanyRepository.save(fc);
+//
+//        long cnt = jobPostsRepository.countByCompany_Id(companyId);
+//        return new FavoriteCompanySummaryDto(saved.getId(), companyId, company.getName(), cnt);
+//    }
+
+
+    /** 관심 기업 삭제(회사 ID 기준) */
+    @Transactional
+    public void removeFavoriteCompany(Long userId, Long companyId) {
+        var fc = favoriteCompanyRepository
+                .findByUsers_IdAndCompany_Id(userId, companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("즐겨찾기에 해당 회사가 없습니다."));
+        favoriteCompanyRepository.delete(fc);  // 이 방법은 @Modifying 불필요
     }
 }

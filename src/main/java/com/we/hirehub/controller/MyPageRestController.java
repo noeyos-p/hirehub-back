@@ -35,7 +35,7 @@ public class MyPageRestController {
         throw new IllegalStateException("현재 사용자 ID를 확인할 수 없습니다.");
     }
 
-    // ====== 이력서 CRUD ======
+    // ====== 이력서 CRUD (기존 유지) ======
 
     @GetMapping("/resumes")
     public PagedResponse<ResumeDto> list(Authentication auth,
@@ -67,7 +67,7 @@ public class MyPageRestController {
         return ResponseEntity.noContent().build();
     }
 
-    // ====== 내 프로필 조회/수정 ======
+    // ====== 내 프로필 (기존 유지) ======
 
     @GetMapping("/me")
     public ResponseEntity<MyProfileDto> getMe(Authentication auth) {
@@ -80,10 +80,35 @@ public class MyPageRestController {
         return ResponseEntity.ok(myPageService.updateProfile(userId(auth), req));
     }
 
-    // ====== 지원내역 조회 (Read Only) ======
+    // ====== 지원내역 (기존 유지) ======
 
     @GetMapping("/applies")
     public ResponseEntity<List<ApplyResponse>> getMyApplies(Authentication auth) {
         return ResponseEntity.ok(myPageService.getMyApplyList(userId(auth)));
+    }
+
+    // ====== ⭐ 신규: 관심 기업 ======
+
+    /** 관심 기업 목록 (회사명 + 공고수) */
+    @GetMapping("/favorites/companies")
+    public PagedResponse<FavoriteCompanySummaryDto> favoriteCompanies(Authentication auth,
+                                                                      @RequestParam(defaultValue = "0") int page,
+                                                                      @RequestParam(defaultValue = "10") int size) {
+        return myPageService.listFavoriteCompanies(userId(auth), page, size);
+    }
+
+//    /** 관심 기업 추가 (companyId 기반) */
+//    @PostMapping("/favorites/companies")
+//    public FavoriteCompanySummaryDto addFavoriteCompany(Authentication auth,
+//                                                        @Valid @RequestBody FavoriteCompanyAddRequest req) {
+//        return myPageService.addFavoriteCompany(userId(auth), req.getCompanyId());
+//    }
+
+    /** 관심 기업 삭제 (companyId 기반) */
+    @DeleteMapping("/favorites/companies/{companyId}")
+    public ResponseEntity<Void> removeFavoriteCompany(Authentication auth,
+                                                      @PathVariable Long companyId) {
+        myPageService.removeFavoriteCompany(userId(auth), companyId);
+        return ResponseEntity.noContent().build();
     }
 }
