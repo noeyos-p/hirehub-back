@@ -1,4 +1,4 @@
-package com.we.hirehub.repo;
+package com.we.hirehub.repository;
 
 import com.we.hirehub.entity.Resume;
 import org.springframework.data.domain.Page;

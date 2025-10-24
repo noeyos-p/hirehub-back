@@ -3,7 +3,7 @@ package com.we.hirehub.auth;
 
 import com.we.hirehub.entity.Role;
 import com.we.hirehub.entity.Users;
-import com.we.hirehub.repo.UsersRepository;
+import com.we.hirehub.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;

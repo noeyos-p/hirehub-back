@@ -1,4 +1,4 @@
-package com.we.hirehub.repo;
+package com.we.hirehub.repository;
 
 import com.we.hirehub.entity.Comments;
 import org.springframework.data.jpa.repository.JpaRepository;

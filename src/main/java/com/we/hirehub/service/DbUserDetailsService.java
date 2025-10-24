@@ -2,7 +2,7 @@
 package com.we.hirehub.service;
 
 import com.we.hirehub.entity.Users;
-import com.we.hirehub.repo.UsersRepository;
+import com.we.hirehub.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

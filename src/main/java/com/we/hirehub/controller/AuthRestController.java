@@ -3,7 +3,7 @@ package com.we.hirehub.controller;
 import com.we.hirehub.config.JwtTokenProvider;
 import com.we.hirehub.dto.LoginRequest;
 import com.we.hirehub.entity.Users;
-import com.we.hirehub.repo.UsersRepository;
+import com.we.hirehub.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
