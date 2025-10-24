@@ -66,7 +66,7 @@ public class MyPageService {
         Resume resume = resumeRepository.findByIdAndUsers_Id(resumeId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("이력서를 찾을 수 없습니다."));
 
-        // 제출된(잠금) 이력서는 수정 금지 — locked만으로 판정
+        // 제출(잠금)된 이력서 수정 금지
         if (resume.isLocked() || resumeRepository.existsByIdAndUsers_IdAndLockedTrue(resumeId, userId)) {
             throw new ForbiddenEditException("이미 제출된 이력서는 수정할 수 없습니다.");
         }
@@ -81,7 +81,19 @@ public class MyPageService {
         return toDto(updated);
     }
 
+    /** 🔥 삭제 (CRUD의 D) */
+    @Transactional
+    public void delete(Long userId, Long resumeId) {
+        Resume resume = resumeRepository.findByIdAndUsers_Id(resumeId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("이력서를 찾을 수 없습니다."));
 
+        // 제출(잠금)된 이력서 삭제 금지 (정책 동일 적용)
+        if (resume.isLocked() || resumeRepository.existsByIdAndUsers_IdAndLockedTrue(resumeId, userId)) {
+            throw new ForbiddenEditException("이미 제출된 이력서는 삭제할 수 없습니다.");
+        }
+
+        resumeRepository.delete(resume);
+    }
 
     private ResumeDto toDto(Resume r) {
         return new ResumeDto(

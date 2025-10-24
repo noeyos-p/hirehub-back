@@ -54,7 +54,7 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()    // 로그인/토큰발급 허용
+                        .requestMatchers("/api/auth/**", "/error").permitAll()    // 로그인/토큰발급 허용
                         .requestMatchers("/api/onboarding/**").permitAll()
                         .requestMatchers("/oauth2/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
