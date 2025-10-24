@@ -6,11 +6,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
-import io.jsonwebtoken.Claims;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+import java.util.Map;
 
 @Component
 public class JwtTokenProvider {
@@ -26,53 +26,53 @@ public class JwtTokenProvider {
         this.accessTokenMillis = accessExpireSeconds * 1000L;
     }
 
-    public String createToken(Authentication authentication) {
-        String username;
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof UserDetails details) {
-            username = details.getUsername();
-        } else {
-            username = String.valueOf(principal);
-        }
-
+    /** username(email) + userId를 받아 토큰 발급 */
+    public String createToken(String username, Long userId) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + accessTokenMillis);
+        Date exp = new Date(now.getTime() + accessTokenMillis);
 
         return Jwts.builder()
-                .setSubject(username)         // 보통 email/username
+                .setSubject(username)             // email
+                .addClaims(Map.of("uid", userId)) // ★ userId 클레임
                 .setIssuedAt(now)
-                .setExpiration(expiry)
+                .setExpiration(exp)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public String getUsername(String token) {
-        return parseClaims(token).getBody().getSubject();
+    /** (기존 Authentication만 넘어오는 경우가 있으면 보조용) */
+    public String createToken(Authentication authentication, Long userId) {
+        String username = (authentication.getPrincipal() instanceof UserDetails d)
+                ? d.getUsername()
+                : String.valueOf(authentication.getPrincipal());
+        return createToken(username, userId);
     }
 
     public boolean validate(String token) {
         try {
-            parseClaims(token);
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
     }
 
-    private Jws<Claims> parseClaims(String token) {
+    public String getUsername(String token) {
+        return getClaims(token).getSubject();
+    }
+
+    public Long getUserId(String token) {
+        Object v = getClaims(token).get("uid");
+        if (v instanceof Number n) return n.longValue();
+        if (v instanceof String s) return Long.parseLong(s);
+        return null;
+    }
+
+    private Claims getClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
-                .parseClaimsJws(token);
-
+                .parseClaimsJws(token)
+                .getBody();
     }
-    public Long getUserId(String token) {
-        Claims claims = parseClaims(token).getBody();
-        Object id = claims.get("id"); // 토큰에 "id" 클레임을 넣어둔 경우
-        if (id instanceof Integer i) return i.longValue();
-        if (id instanceof Long l) return l;
-        if (id instanceof String s) return Long.parseLong(s);
-        throw new IllegalStateException("토큰에 userId 정보가 없습니다.");
-    }
-
 }
