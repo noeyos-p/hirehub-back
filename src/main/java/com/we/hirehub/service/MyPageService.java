@@ -1,15 +1,20 @@
 package com.we.hirehub.service;
 
-import com.we.hirehub.dto.*;
+import com.we.hirehub.dto.PagedResponse;
+import com.we.hirehub.dto.ResumeDto;
+import com.we.hirehub.dto.ResumeUpsertRequest;
 import com.we.hirehub.entity.Resume;
 import com.we.hirehub.entity.Users;
-import com.we.hirehub.repo.*;
+import com.we.hirehub.exception.ForbiddenEditException;
+import com.we.hirehub.exception.ResourceNotFoundException;
+import com.we.hirehub.repo.ResumeRepository;
+import com.we.hirehub.repo.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
+import java.time.LocalDate;
 import java.util.stream.Collectors;
 
 @Service
@@ -17,146 +22,77 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class MyPageService {
 
-    private final UsersRepository usersRepository;
-    private final UserRepository userRepository; // 기존 프로젝트 호환 (Users와 같은 테이블)
     private final ResumeRepository resumeRepository;
-    private final ApplyRepository applyRepository;
+    private final UserRepository userRepository;
 
-    public Users getUserOrThrow(Long userId) {
-        return usersRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+    public PagedResponse<ResumeDto> list(Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updateAt"));
+        Page<Resume> p = resumeRepository.findByUsers_Id(userId, pageable);
+
+        return new PagedResponse<>(
+                p.getContent().stream().map(this::toDto).collect(Collectors.toList()),
+                p.getNumber(), p.getSize(), p.getTotalElements(), p.getTotalPages()
+        );
     }
 
-    public Optional<Users> findByEmail(String email) {
-        try {
-            return usersRepository.findByEmail(email);
-        } catch (Throwable t) {
-            return Optional.empty();
-        }
+    public ResumeDto get(Long userId, Long resumeId) {
+        Resume resume = resumeRepository.findByIdAndUsers_Id(resumeId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("이력서를 찾을 수 없습니다."));
+        return toDto(resume);
     }
 
-    // --- My Info ---
-    public MyProfileDto getProfile(Long userId) {
-        Users u = getUserOrThrow(userId);
-        return MyProfileDto.builder()
-                .id(u.getId())
-                .email(u.getEmail())
-                .nickname(u.getNickname())
-                .phone(u.getPhone())
-                .dob(u.getDob())
-                .gender(u.getGender())
-                .education(u.getEducation())
-                .careerLevel(u.getCareerLevel())
-                .position(u.getPosition())
-                .address(u.getAddress())
-                .location(u.getLocation())
+    @Transactional
+    public ResumeDto create(Long userId, ResumeUpsertRequest req) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
+
+        Resume resume = Resume.builder()
+                .title(req.title())
+                .idPhoto(req.idPhoto())
+                .essayTittle(req.essayTitle())
+                .essayContent(req.essayContent())
+                .createAt(LocalDate.now())
+                .updateAt(LocalDate.now())
+                .locked(false)
+                .users(user)
                 .build();
+
+        Resume saved = resumeRepository.save(resume);
+        return toDto(saved);
     }
 
     @Transactional
-    public MyProfileDto updateProfile(Long userId, MyProfileDto req) {
-        Users u = getUserOrThrow(userId);
-        if (req.getNickname() != null) u.setNickname(req.getNickname());
-        if (req.getPhone() != null) u.setPhone(req.getPhone());
-        if (req.getDob() != null) u.setDob(req.getDob());
-        if (req.getGender() != null) u.setGender(req.getGender());
-        if (req.getEducation() != null) u.setEducation(req.getEducation());
-        if (req.getCareerLevel() != null) u.setCareerLevel(req.getCareerLevel());
-        if (req.getPosition() != null) u.setPosition(req.getPosition());
-        if (req.getAddress() != null) u.setAddress(req.getAddress());
-        if (req.getLocation() != null) u.setLocation(req.getLocation());
-        usersRepository.save(u);
-        return getProfile(userId);
-    }
+    public ResumeDto update(Long userId, Long resumeId, ResumeUpsertRequest req) {
+        Resume resume = resumeRepository.findByIdAndUsers_Id(resumeId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("이력서를 찾을 수 없습니다."));
 
-    // --- Resumes ---
-    public List<ResumeDto> listResumes(Long userId) {
-        return resumeRepository.findByUsers_Id(userId).stream()
-                .map(r -> {
-                    ResumeDto.ResumeDtoBuilder b = ResumeDto.builder()
-                            .id(r.getId());
-                    // usersId
-                    if (r.getUsers() != null) {
-                        b.usersId(r.getUsers().getId());
-                    }
-                    // title (엔티티에 title 필드가 존재한다는 전제 - 프로젝트 DTO가 title을 노출함)
-                    b.title(r.getTitle());
-                    return b.build();
-                })
-                .collect(Collectors.toList());
-    }
-
-    @Transactional
-    public ResumeDto createResume(Long userId, ResumeDto req) {
-        Users u = getUserOrThrow(userId);
-        Resume r = new Resume();
-        // 연관관계
-        r.setUsers(u);
-        // 제목만 세팅 (content/createdAt 등은 엔티티/DTO에 없음)
-        r.setTitle(req.getTitle());
-        Resume saved = resumeRepository.save(r);
-
-        return ResumeDto.builder()
-                .id(saved.getId())
-                .usersId(u.getId())
-                .title(saved.getTitle())
-                .build();
-    }
-
-    public ResumeDto getResume(Long resumeId) {
-        Resume r = resumeRepository.findById(resumeId)
-                .orElseThrow(() -> new IllegalArgumentException("Resume not found"));
-        ResumeDto.ResumeDtoBuilder b = ResumeDto.builder()
-                .id(r.getId())
-                .title(r.getTitle());
-        if (r.getUsers() != null) {
-            b.usersId(r.getUsers().getId());
+        // 제출된(잠금) 이력서는 수정 금지 — locked만으로 판정
+        if (resume.isLocked() || resumeRepository.existsByIdAndUsers_IdAndLockedTrue(resumeId, userId)) {
+            throw new ForbiddenEditException("이미 제출된 이력서는 수정할 수 없습니다.");
         }
-        return b.build();
+
+        resume.setTitle(req.title());
+        resume.setIdPhoto(req.idPhoto());
+        resume.setEssayTittle(req.essayTitle());
+        resume.setEssayContent(req.essayContent());
+        resume.setUpdateAt(LocalDate.now());
+
+        Resume updated = resumeRepository.save(resume);
+        return toDto(updated);
     }
 
-    @Transactional
-    public ResumeDto updateResume(Long resumeId, ResumeDto req) {
-        Resume r = resumeRepository.findById(resumeId)
-                .orElseThrow(() -> new IllegalArgumentException("Resume not found"));
-        if (req.getTitle() != null) {
-            r.setTitle(req.getTitle());
-        }
-        Resume saved = resumeRepository.save(r);
-        return getResume(saved.getId());
-    }
 
-    @Transactional
-    public void deleteResume(Long resumeId) {
-        resumeRepository.deleteById(resumeId);
-    }
 
-    public List<ApplicationSummaryDto> listApplications(Long userId) {
-        // Apply는 user를 직접 갖지 않으므로 resume.users.id 경로로 조회
-        return applyRepository.findByResume_Users_Id(userId).stream().map(a -> {
-            Long jobPostId = null;
-            String jobTitle = null;
-            String companyName = null;
-
-            if (a.getJobPosts() != null) {
-                jobPostId = a.getJobPosts().getId();
-                jobTitle = a.getJobPosts().getTitle();
-                if (a.getJobPosts().getCompany() != null) {
-                    companyName = a.getJobPosts().getCompany().getName(); // Company.name
-                }
-            }
-
-            String appliedAt = (a.getApplyAt() != null) ? a.getApplyAt().toString() : null;
-            String status = null; // Apply에 status 없음. 필요시 기본값 "APPLIED" 등 사용 가능.
-
-            return ApplicationSummaryDto.builder()
-                    .id(a.getId())
-                    .jobPostId(jobPostId)
-                    .jobTitle(jobTitle)
-                    .companyName(companyName)
-                    .appliedAt(appliedAt)
-                    .status(status)
-                    .build();
-        }).toList();
+    private ResumeDto toDto(Resume r) {
+        return new ResumeDto(
+                r.getId(),
+                r.getTitle(),
+                r.getIdPhoto(),
+                r.getEssayTittle(),
+                r.getEssayContent(),
+                r.isLocked(),
+                r.getCreateAt(),
+                r.getUpdateAt()
+        );
     }
 }
