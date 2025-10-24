@@ -1,8 +1,6 @@
 package com.we.hirehub.controller;
 
-import com.we.hirehub.dto.PagedResponse;
-import com.we.hirehub.dto.ResumeDto;
-import com.we.hirehub.dto.ResumeUpsertRequest;
+import com.we.hirehub.dto.*;
 import com.we.hirehub.service.MyPageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +34,8 @@ public class MyPageRestController {
         throw new IllegalStateException("현재 사용자 ID를 확인할 수 없습니다.");
     }
 
+    // ====== 이력서 CRUD ======
+
     // 목록: GET /api/mypage/resumes?page=0&size=10
     @GetMapping("/resumes")
     public PagedResponse<ResumeDto> list(Authentication auth,
@@ -64,14 +64,25 @@ public class MyPageRestController {
         return myPageService.update(userId(auth), resumeId, req);
     }
 
-    // 🔥 삭제: DELETE /api/mypage/resumes/{resumeId}
+    // 삭제: DELETE /api/mypage/resumes/{resumeId}
     @DeleteMapping("/resumes/{resumeId}")
     public ResponseEntity<Void> delete(Authentication auth, @PathVariable Long resumeId) {
         myPageService.delete(userId(auth), resumeId);
         return ResponseEntity.noContent().build(); // 204
     }
 
-    // (선택) 대표 지정은 엔티티 정책 확정 시 추가
-    // @PutMapping("/resumes/{resumeId}/primary")
-    // public void setPrimary(Authentication auth, @PathVariable Long resumeId) {...}
+    // ====== 내 프로필 조회/수정 (이메일 제외 수정 가능) ======
+
+    /** 내 프로필 조회 */
+    @GetMapping("/me")
+    public ResponseEntity<MyProfileDto> getMe(Authentication auth) {
+        return ResponseEntity.ok(myPageService.getProfile(userId(auth)));
+    }
+
+    /** 내 프로필 수정 (이메일 제외, null 아닌 필드만 부분 업데이트) */
+    @PutMapping("/me")
+    public ResponseEntity<MyProfileDto> updateMe(Authentication auth,
+                                                 @RequestBody MyProfileUpdateRequest req) {
+        return ResponseEntity.ok(myPageService.updateProfile(userId(auth), req));
+    }
 }
