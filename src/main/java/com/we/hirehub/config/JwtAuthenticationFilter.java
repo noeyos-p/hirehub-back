@@ -16,15 +16,15 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 /**
- * ✅ JWT 인증 필터 (정식 수정 버전)
- * - Principal로 userId(Long)을 직접 주입
- * - 이후 Controller 단에서 auth.getPrincipal() → Long 정상 인식됨
+ * JWT 인증 필터
+ * - 모든 HTTP 요청에서 JWT 토큰을 검증
+ * - Principal을 userId(Long)로 설정하여 Controller에서 사용
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
-    private final UserDetailsService userDetailsService; // dbUserDetailsService 명시적 주입
+    private final UserDetailsService userDetailsService;
 
     public JwtAuthenticationFilter(
             JwtTokenProvider tokenProvider,
@@ -42,33 +42,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = resolveToken(request);
 
         if (StringUtils.hasText(token) && tokenProvider.validate(token)) {
-
-            // ✅ 토큰에서 userId 추출 (Long)
+            // 토큰에서 userId와 username 추출
             Long userId = tokenProvider.getUserId(token);
-
-            // ✅ 필요하다면 username도 가져오기
             String username = tokenProvider.getUsername(token);
 
-            // DB 조회는 optional (권한용)
+            // DB에서 권한 정보 조회
             UserDetails userDetails = null;
             try {
                 userDetails = userDetailsService.loadUserByUsername(username);
             } catch (Exception ignored) {
+                // 권한 조회 실패 시 권한 없이 인증만 진행
             }
 
-            // ✅ Principal을 userId(Long)으로 설정
-            var auth = new UsernamePasswordAuthenticationToken(
-                    userId, // ← 핵심: principal에 userId 넣기
+            // Principal을 userId(Long)으로 설정
+            var authentication = new UsernamePasswordAuthenticationToken(
+                    userId,
                     null,
                     userDetails != null ? userDetails.getAuthorities() : null
             );
 
-            SecurityContextHolder.getContext().setAuthentication(auth);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
         }
 
         chain.doFilter(request, response);
     }
 
+    /**
+     * HTTP 헤더에서 JWT 토큰 추출
+     */
     private String resolveToken(HttpServletRequest request) {
         String bearer = request.getHeader("Authorization");
         if (StringUtils.hasText(bearer) && bearer.startsWith("Bearer ")) {

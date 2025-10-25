@@ -61,6 +61,10 @@ public class JobPosts {
     @Column(nullable = false)
     private String salary;
 
+    // 공고사진
+    @Column(columnDefinition = "LONGTEXT") // 사용이유 : AWS S3 url 사용
+    private String photo;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;

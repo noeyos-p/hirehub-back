@@ -1,4 +1,3 @@
-// src/main/java/com/we/hirehub/bootstrap/AdminSeeder.java
 package com.we.hirehub.auth;
 
 import com.we.hirehub.entity.Role;
@@ -22,16 +21,11 @@ public class AdminSeeder {
         usersRepository.findByEmail("admin@admin").ifPresentOrElse(
                 u -> {}, // 존재하면 패스
                 () -> {
-                    Users a = new Users();
-                    a.setEmail("admin@admin");                 // 로그인 아이디로 사용
-                    a.setPassword(passwordEncoder.encode("admin123"));
-                    a.setRole(Role.ADMIN);
-                    a.setName("");
-                    a.setNickname("");
-                    a.setPhone("");
-                    a.setDob("1970-01-01");
-                    a.setGender("UNKNOWN");
-                    usersRepository.save(a);
+                    Users admin = new Users();
+                    admin.setEmail("admin@admin");
+                    admin.setPassword(passwordEncoder.encode("admin123"));
+                    admin.setRole(Role.ADMIN);
+                    usersRepository.save(admin);
                 }
         );
     }

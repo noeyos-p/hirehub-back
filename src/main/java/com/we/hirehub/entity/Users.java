@@ -20,21 +20,16 @@ public class Users {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
     private String nickname;
 
-    @Column(nullable = false)
     private String phone;
 
     // 생년월일
-    @Column(nullable = false)
     private String dob;
 
     // 성별
-    @Column(nullable = false)
     private String gender;
 
     @Column(nullable = false)
