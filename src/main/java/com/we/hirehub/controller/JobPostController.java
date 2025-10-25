@@ -29,4 +29,9 @@ public class JobPostController {
     public List<JobPostsDto> searchJobPosts(@RequestParam String keyword) {
         return jobPostService.searchJobPosts(keyword);
     }
+
+    @PostMapping
+    public JobPostsDto createJobPost(@RequestBody JobPostsDto jobPostsDto) {
+        return jobPostService.createJobPost(jobPostsDto);
+    }
 }
