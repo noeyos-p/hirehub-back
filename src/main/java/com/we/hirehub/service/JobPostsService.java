@@ -8,4 +8,6 @@ public interface JobPostsService {
     List<JobPostsDto> getAllJobPosts();
     JobPostsDto getJobPostById(Long id);
     List<JobPostsDto> searchJobPosts(String keyword);
+    JobPostsDto createJobPost(JobPostsDto dto);
+
 }

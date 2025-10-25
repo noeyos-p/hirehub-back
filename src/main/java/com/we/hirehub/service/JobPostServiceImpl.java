@@ -1,7 +1,9 @@
 package com.we.hirehub.service;
 
 import com.we.hirehub.dto.JobPostsDto;
+import com.we.hirehub.entity.Company;
 import com.we.hirehub.entity.JobPosts;
+import com.we.hirehub.repository.CompanyRepository;
 import com.we.hirehub.repository.JobPostsRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,7 @@ import java.util.stream.Collectors;
 public class JobPostServiceImpl implements JobPostsService {
 
     private final JobPostsRepository jobPostRepository;
+    private final CompanyRepository companyRepository; // @Repository 인터페이스
 
     private JobPostsDto convertToDto(JobPosts job) {
         return JobPostsDto.builder()
@@ -52,5 +55,31 @@ public class JobPostServiceImpl implements JobPostsService {
                 .stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public JobPostsDto createJobPost(JobPostsDto dto) {
+        // 1️⃣ 회사 조회 (없으면 예외)
+        Company company = companyRepository.findByName(dto.getCompanyName())
+                .orElseThrow(() -> new RuntimeException("해당 회사가 존재하지 않습니다."));
+
+        // 2️⃣ 엔티티 변환
+        JobPosts job = JobPosts.builder()
+                .title(dto.getTitle())
+                .content(dto.getContent())
+                .startAt(dto.getStartAt())
+                .endAt(dto.getEndAt())
+                .location(dto.getLocation())
+                .careerLevel(dto.getCareerLevel())
+                .education(dto.getEducation())
+                .type(dto.getType())
+                .salary(dto.getSalary())
+                .company(company) // Company 객체 연결
+                .build();
+
+        // 3️⃣ DB 저장
+        JobPosts saved = jobPostRepository.save(job);
+
+        return convertToDto(saved);
     }
 }
