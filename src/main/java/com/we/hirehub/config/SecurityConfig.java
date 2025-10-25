@@ -1,5 +1,6 @@
 package com.we.hirehub.config;
 
+import com.we.hirehub.auth.OAuth2LoginHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -26,10 +27,9 @@ public class SecurityConfig {
 
     private final UserDetailsService dbUserDetailsService;
     private final PasswordEncoder passwordEncoder;
-
-    // JWT 구성 요소 주입
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthEntryPoint jwtAuthEntryPoint;
+    private final OAuth2LoginHandler oAuth2LoginHandler;  // ← 추가
 
     @Bean
     public DaoAuthenticationProvider daoAuthProvider() {
@@ -50,27 +50,27 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
 
-                // ★ 세션을 쓰지 않는 JWT 모드
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/error").permitAll()    // 로그인/토큰발급 허용
-                        .requestMatchers("/api/onboarding/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/error").permitAll()
                         .requestMatchers("/oauth2/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
 
-                // 폼/세션 로그인 OFF (JWT만 사용)
                 .formLogin(login -> login.disable())
-                .oauth2Login(oauth -> oauth.disable())
 
-                // 인증/인가 실패 응답(JSON)
+                // ✅ OAuth2 로그인 활성화
+                .oauth2Login(oauth -> oauth
+                        .successHandler(oAuth2LoginHandler)  // 성공 시 핸들러
+                        .failureHandler(oAuth2LoginHandler)  // 실패 시 핸들러
+                )
+
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(jwtAuthEntryPoint)
                 )
 
-                // ★ 모든 요청 전에 JWT 검증 필터 삽입
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
