@@ -1,26 +1,43 @@
 package com.we.hirehub.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-/**
- * 프로필 수정 요청 DTO
- * - 이메일 제외(수정 불가)
- * - 들어온 값(null 아님)만 부분 업데이트
- * - 필드 이름은 Users 엔티티의 프로퍼티와 가능한 한 동일하게 사용
- */
+import java.time.LocalDate;
+
 @Data
 public class MyProfileUpdateRequest {
-    private String nickname;
+
+    @Size(max = 50)
     private String name;
-    private String phone;          // phoneNumber / tel 등과 매핑
-    private String birth;          // "yyyy-MM-dd" 형식 문자열(or LocalDate로 바꿔도 됨)
+
+    @Pattern(regexp = "^(01[0-9]-?[0-9]{3,4}-?[0-9]{4})$", message = "휴대폰 번호 형식이 아닙니다.")
+    private String phone;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private LocalDate birth;   // "1995-01-20" 형식
+
     private Integer age;
+
+    @Size(max = 10)
     private String gender;
+
+    @Size(max = 255)
     private String address;
+
+    @Size(max = 50)
     private String region;
-    private String job;            // 직무
-    private String career;         // 경력(연차/텍스트)
-    private String education;      // 학력
-    private String intro;          // 한줄소개/자기소개
-    // 필요하면 프론트 항목명을 여기 더 추가 (email은 절대 넣지 말 것)
+
+    @Size(max = 50)
+    private String position;
+
+    @Size(max = 50)
+    private String career;
+
+    @Size(max = 50)
+    private String education;
+
+    // ⚠ email 필드는 아예 두지 않는다(불변).
 }

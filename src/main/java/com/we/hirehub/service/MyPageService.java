@@ -12,7 +12,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -89,7 +92,9 @@ public class MyPageService {
         return toDto(updated);
     }
 
-    /** 🔥 삭제 (CRUD의 D) */
+    /**
+     * 🔥 삭제 (CRUD의 D)
+     */
     @Transactional
     public void delete(Long userId, Long resumeId) {
         Resume resume = resumeRepository.findByIdAndUsers_Id(resumeId, userId)
@@ -131,25 +136,30 @@ public class MyPageService {
         Users u = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
 
+        // ✅ 허용 필드만 부분 갱신 (email, id, password 등은 제외)
+        var allowed = java.util.Set.of(
+                "name","phone","birth","age","gender","address",
+                "region","position","career","education"
+        );
+
         BeanWrapper target = new BeanWrapperImpl(u);
         BeanWrapper source = new BeanWrapperImpl(req);
 
         for (var pd : source.getPropertyDescriptors()) {
             String name = pd.getName();
             if ("class".equals(name)) continue;
-            if ("email".equalsIgnoreCase(name)) continue;
+            if (!allowed.contains(name)) continue;      // 🔒 화이트리스트
             if (!target.isWritableProperty(name)) continue;
 
             Object val = source.getPropertyValue(name);
             if (val != null) {
-                try {
-                    target.setPropertyValue(name, val);
-                } catch (Exception ignore) {}
+                try { target.setPropertyValue(name, val); } catch (Exception ignore) {}
             }
         }
 
+        // 타임스탬프 필드가 있으면 갱신
         if (target.isWritableProperty("updateAt")) {
-            target.setPropertyValue("updateAt", java.time.LocalDate.now());
+            target.setPropertyValue("updateAt", LocalDate.now());
         } else if (target.isWritableProperty("updatedAt")) {
             target.setPropertyValue("updatedAt", java.time.LocalDateTime.now());
         }
@@ -176,60 +186,57 @@ public class MyPageService {
                 .collect(Collectors.toList());
     }
 
-    // ====== ⭐ 신규: 관심 기업 ======
+    // ===== 즐겨찾기: 추가 C =====
+    @Transactional
+    public FavoriteCompanySummaryDto addFavoriteCompany(Long userId, Long companyId) {
+        // 유저/회사 존재 체크
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
+        var company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResourceNotFoundException("회사를 찾을 수 없습니다. id=" + companyId));
 
-    /** 관심 기업 목록(회사명 + 회사 공고 수) */
+        // 중복이면 그대로 반환(멱등)
+        var existed = favoriteCompanyRepository.findByUsers_IdAndCompany_Id(userId, companyId)
+                .orElse(null);
+        if (existed != null) return toSummary(existed);
+
+        // 새로 저장
+        var fav = new FavoriteCompany();
+        fav.setUsers(user);
+        fav.setCompany(company);
+        var saved = favoriteCompanyRepository.save(fav);
+
+        return toSummary(saved);
+    }
+
+    // ===== 즐겨찾기: 목록 R (이미 있을 경우 이 메서드와 시그니처 맞춰 사용) =====
     public PagedResponse<FavoriteCompanySummaryDto> listFavoriteCompanies(Long userId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
-        Page<FavoriteCompany> p = favoriteCompanyRepository.findByUsers_Id(userId, pageable);
-
-        var items = p.getContent().stream()
-                .map(fc -> new FavoriteCompanySummaryDto(
-                        fc.getId(),
-                        fc.getCompany().getId(),
-                        fc.getCompany().getName(),
-                        jobPostsRepository.countByCompany_Id(fc.getCompany().getId())
-                ))
-                .collect(Collectors.toList());
-
+        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
+        var p = favoriteCompanyRepository.findByUsers_Id(userId, pageable);
+        var items = p.getContent().stream().map(this::toSummary).toList();
         return new PagedResponse<>(items, p.getNumber(), p.getSize(), p.getTotalElements(), p.getTotalPages());
     }
 
-    /** 관심 기업 추가(중복 시 기존 유지) */
-//    @Transactional
-//    public FavoriteCompanySummaryDto addFavoriteCompany(Long userId, Long companyId) {
-//        Users user = userRepository.findById(userId)
-//                .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
-//
-//        var company = companyRepository.findById(companyId)
-//                .orElseThrow(() -> new ResourceNotFoundException("회사를 찾을 수 없습니다."));
-//
-//        // 이미 즐겨찾기면 그대로 반환
-//        var exist = favoriteCompanyRepository.findByUsers_IdAndCompany_Id(userId, companyId);
-//        if (exist.isPresent()) {
-//            var fc = exist.get();
-//            long cnt = jobPostsRepository.countByCompany_Id(companyId);
-//            return new FavoriteCompanySummaryDto(fc.getId(), companyId, company.getName(), cnt);
-//        }
-//
-//        // ✅ 익명서브클래스 금지. 일반 인스턴스로 생성해서 저장
-//        FavoriteCompany fc = new FavoriteCompany();
-//        fc.setUsers(user);
-//        fc.setCompany(company);
-//
-//        FavoriteCompany saved = favoriteCompanyRepository.save(fc);
-//
-//        long cnt = jobPostsRepository.countByCompany_Id(companyId);
-//        return new FavoriteCompanySummaryDto(saved.getId(), companyId, company.getName(), cnt);
-//    }
-
-
-    /** 관심 기업 삭제(회사 ID 기준) */
+    // ===== 즐겨찾기: 삭제 D (이미 있으면 그대로 사용) =====
     @Transactional
     public void removeFavoriteCompany(Long userId, Long companyId) {
-        var fc = favoriteCompanyRepository
-                .findByUsers_IdAndCompany_Id(userId, companyId)
-                .orElseThrow(() -> new ResourceNotFoundException("즐겨찾기에 해당 회사가 없습니다."));
-        favoriteCompanyRepository.delete(fc);  // 이 방법은 @Modifying 불필요
+        favoriteCompanyRepository.deleteByUsers_IdAndCompany_Id(userId, companyId);
+    }
+
+
+    // ===== 변환 =====
+    private FavoriteCompanySummaryDto toSummary(FavoriteCompany fc) {
+        var company = fc.getCompany();
+        long openCount = (company != null && company.getId() != null)
+                ? jobPostsRepository.countByCompany_Id(company.getId())
+                : 0L;
+
+        // ✅ @Builder 미사용 → 생성자 사용
+        return new FavoriteCompanySummaryDto(
+                fc.getId(),                              // favoriteId
+                company != null ? company.getId() : null,// companyId
+                company != null ? company.getName() : null,
+                openCount                                // openPostCount
+        );
     }
 }

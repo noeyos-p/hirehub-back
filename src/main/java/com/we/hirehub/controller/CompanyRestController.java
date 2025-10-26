@@ -1,10 +1,18 @@
 package com.we.hirehub.controller;
 
-import com.we.hirehub.dto.CompanyDto;
+import com.we.hirehub.dto.CompanySummaryDto;
+import com.we.hirehub.dto.FavoriteCompanySummaryDto;
+import com.we.hirehub.dto.PagedResponse;
 import com.we.hirehub.entity.Company;
 import com.we.hirehub.repository.CompanyRepository;
-import com.we.hirehub.service.CompanyService;
+import com.we.hirehub.service.MyPageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,40 +20,64 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/companies")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class CompanyRestController {
 
+    // ✅ 누락됐던 서비스 주입
+    private final MyPageService myPageService;
     private final CompanyRepository companyRepository;
-    private final CompanyService companyService; // Service로 바꿔서 처리
 
-    @PostMapping
-    public Company addCompany(@RequestBody CompanyDto companyDto) {
-        Company company = Company.builder()
-                .name(companyDto.getName())
-                .content(companyDto.getContent())
-                .address(companyDto.getAddress())
-                .since(companyDto.getSince())
-                .benefits(companyDto.getBenefits())
-                .website(companyDto.getWebsite())
-                .industry(companyDto.getIndustry())
-                .ceo(companyDto.getCeo())
-                .photo(companyDto.getPhoto())
-                .build();
 
-        return companyRepository.save(company);
+    // ... (기존 회사 상세/목록 등의 엔드포인트들)
+
+    /** 기업상세 페이지에서 즐겨찾기 추가(C) */
+    @PostMapping("/{companyId}/favorite")
+    public ResponseEntity<FavoriteCompanySummaryDto> addFavorite(Authentication auth,
+                                                                 @PathVariable Long companyId) {
+        Long uid = userId(auth);
+        FavoriteCompanySummaryDto body = myPageService.addFavoriteCompany(uid, companyId);
+        return ResponseEntity.ok(body);
     }
 
-    // 전체 조회
+    // ===== 공통: 로그인 사용자 id 추출 (MyPageRestController와 동일 패턴)
+    private Long userId(Authentication auth) {
+        if (auth == null) {
+            auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null) throw new IllegalStateException("인증 정보가 없습니다.");
+        }
+        Object p = auth.getPrincipal();
+        if (p instanceof Long l) return l;
+        if (p instanceof String s) {
+            try { return Long.parseLong(s); } catch (NumberFormatException ignore) {}
+        }
+        try {
+            var m = p.getClass().getMethod("getId");
+            Object v = m.invoke(p);
+            if (v instanceof Long l) return l;
+            if (v instanceof String s) return Long.parseLong(s);
+        } catch (Exception ignore) {}
+        throw new IllegalStateException("현재 사용자 ID를 확인할 수 없습니다.");
+    }
+
     @GetMapping
-    public List<CompanyDto> getAllCompanies() {
-        return companyService.getAllCompanies();
-    }
+    public ResponseEntity<PagedResponse<CompanySummaryDto>> listCompanies(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
+        Page<Company> p = companyRepository.findAll(pageable);  // ✅ 인스턴스 호출
+        List<CompanySummaryDto> items = p.getContent().stream()
+                .map(c -> new CompanySummaryDto(
+                        c.getId(),
+                        c.getName(),
+                        c.getIndustry(),
+                        c.getAddress(),
+                        c.getPhoto()
+                ))
+                .toList();
 
-    // 단건 조회 (id 기준)
-    @GetMapping("/{id}")
-    public CompanyDto getCompanyById(@PathVariable Long id) {
-        return companyService.getAllCompanies().stream()
-                .filter(c -> c.getId().equals(id))
-                .findFirst()
-                .orElse(null); // 없으면 null 반환, 필요하면 예외 처리 가능
+        return ResponseEntity.ok(
+                new PagedResponse<>(items, p.getNumber(), p.getSize(), p.getTotalElements(), p.getTotalPages())
+        );
     }
-}
+    }
