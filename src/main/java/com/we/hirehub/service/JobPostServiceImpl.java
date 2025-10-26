@@ -34,6 +34,8 @@ public class JobPostServiceImpl implements JobPostsService {
                 .build();
     }
 
+
+
     @Override
     public List<JobPostsDto> getAllJobPosts() {
         return jobPostRepository.findAll()
@@ -82,4 +84,5 @@ public class JobPostServiceImpl implements JobPostsService {
 
         return convertToDto(saved);
     }
+
 }

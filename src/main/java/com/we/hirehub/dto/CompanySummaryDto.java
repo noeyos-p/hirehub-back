@@ -1,11 +1,14 @@
 package com.we.hirehub.dto;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@AllArgsConstructor
 public class CompanySummaryDto {
     private Long id;
     private String name;
-    private String logoUrl;
-    private String location;
+    private String industry;
+    private String address;
+    private String photo;   // null 가능
 }

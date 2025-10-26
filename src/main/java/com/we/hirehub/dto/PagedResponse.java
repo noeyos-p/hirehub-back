@@ -1,12 +1,16 @@
-// PagedResponse.java
 package com.we.hirehub.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
 import java.util.List;
 
-public record PagedResponse<T>(
-        List<T> content,
-        int page,
-        int size,
-        long totalElements,
-        int totalPages
-) {}
+@Data
+@AllArgsConstructor
+public class PagedResponse<T> {
+    private List<T> content;
+    private int page;
+    private int size;
+    private long totalElements;
+    private int totalPages;
+}

@@ -1,6 +1,7 @@
 package com.we.hirehub.controller;
 
 import com.we.hirehub.dto.*;
+import com.we.hirehub.service.JobPostScrapService;
 import com.we.hirehub.service.MyPageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,8 @@ import java.util.List;
 public class MyPageRestController {
 
     private final MyPageService myPageService;
+    private final JobPostScrapService jobPostScrapService;
+
 
     private Long userId(Authentication auth) {
         if (auth == null) {
@@ -76,7 +79,7 @@ public class MyPageRestController {
 
     @PutMapping("/me")
     public ResponseEntity<MyProfileDto> updateMe(Authentication auth,
-                                                 @RequestBody MyProfileUpdateRequest req) {
+                                                 @Valid @RequestBody MyProfileUpdateRequest req) {
         return ResponseEntity.ok(myPageService.updateProfile(userId(auth), req));
     }
 
@@ -87,9 +90,7 @@ public class MyPageRestController {
         return ResponseEntity.ok(myPageService.getMyApplyList(userId(auth)));
     }
 
-    // ====== ⭐ 신규: 관심 기업 ======
-
-    /** 관심 기업 목록 (회사명 + 공고수) */
+    // (R) 목록
     @GetMapping("/favorites/companies")
     public PagedResponse<FavoriteCompanySummaryDto> favoriteCompanies(Authentication auth,
                                                                       @RequestParam(defaultValue = "0") int page,
@@ -97,18 +98,28 @@ public class MyPageRestController {
         return myPageService.listFavoriteCompanies(userId(auth), page, size);
     }
 
-//    /** 관심 기업 추가 (companyId 기반) */
-//    @PostMapping("/favorites/companies")
-//    public FavoriteCompanySummaryDto addFavoriteCompany(Authentication auth,
-//                                                        @Valid @RequestBody FavoriteCompanyAddRequest req) {
-//        return myPageService.addFavoriteCompany(userId(auth), req.getCompanyId());
-//    }
-
-    /** 관심 기업 삭제 (companyId 기반) */
+    // (D) 삭제
     @DeleteMapping("/favorites/companies/{companyId}")
-    public ResponseEntity<Void> removeFavoriteCompany(Authentication auth,
-                                                      @PathVariable Long companyId) {
+    public ResponseEntity<Void> removeFavoriteCompany(Authentication auth, @PathVariable Long companyId) {
         myPageService.removeFavoriteCompany(userId(auth), companyId);
+        return ResponseEntity.noContent().build();
+    }
+
+
+    // 스크랩 목록 조회 (R)
+    @GetMapping("/favorites/jobposts")
+    public PagedResponse<FavoriteJobPostSummaryDto> scrapJobPosts(
+            Authentication auth,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return jobPostScrapService.list(userId(auth), page, size);
+    }
+
+    // 스크랩 삭제 (D)
+    @DeleteMapping("/favorites/jobposts/{jobPostId}")
+    public ResponseEntity<Void> removeScrapJobPost(Authentication auth, @PathVariable Long jobPostId) {
+        jobPostScrapService.remove(userId(auth), jobPostId);
         return ResponseEntity.noContent().build();
     }
 }

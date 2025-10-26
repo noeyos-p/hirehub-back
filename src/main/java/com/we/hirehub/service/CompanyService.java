@@ -16,6 +16,7 @@ public class CompanyService {
     @Autowired
     private CompanyRepository companyRepository;
 
+
     public List<CompanyDto> getAllCompanies() {
         return companyRepository.findAll().stream()
                 .map(this::convertToDto)
