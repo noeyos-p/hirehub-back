@@ -3,6 +3,7 @@ package com.we.hirehub.controller;
 import com.we.hirehub.dto.BoardDto;
 import com.we.hirehub.entity.Board;
 import com.we.hirehub.entity.Users;
+import com.we.hirehub.repository.UsersRepository;
 import com.we.hirehub.service.BoardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BoardRestController {
     private final BoardService boardService;
+    private final UsersRepository usersRepository; // ✅ 유저 조회용 추가
 
     /** 전체 게시물 조회 */
     @GetMapping
@@ -34,30 +36,25 @@ public class BoardRestController {
     /** 게시물 작성 */
     @PostMapping
     public ResponseEntity<?> createBoard(@RequestBody BoardDto boardDto,
-                                         @AuthenticationPrincipal Users loggedInUser) {
-        System.out.println("loggedInUser: " + (loggedInUser != null ? loggedInUser.getId() : "null"));
-        if (loggedInUser == null) {
-            System.out.println("⚠️ 로그인 안됨 - 테스트용 더미 유저 사용");
-            try {
-                Board board = boardService.createBoardWithUserId(
-                        boardDto.getTitle(),
-                        boardDto.getContent(),
-                        1L  // DB에 존재하는지 확인
-                );
-                return ResponseEntity.ok(board);
-            } catch (Exception e) {
-                e.printStackTrace();
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body("게시글 등록 실패: " + e.getMessage());
-            }
+                                         @AuthenticationPrincipal Long userId) { // ✅ userId로 받기
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("로그인된 사용자만 게시글을 작성할 수 있습니다.");
         }
+
         try {
+            // ✅ userId를 통해 Users 엔티티 로드
+            Users loggedInUser = usersRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("유저를 찾을 수 없습니다."));
+
+            // ✅ 로그인한 유저로 게시글 생성
             Board board = boardService.createBoard(
                     boardDto.getTitle(),
                     boardDto.getContent(),
                     loggedInUser
             );
             return ResponseEntity.ok(board);
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
