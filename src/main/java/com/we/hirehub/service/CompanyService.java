@@ -33,7 +33,16 @@ public class CompanyService {
         companyRepository.deleteById(id);
     }
 
-    private CompanyDto convertToDto(Company company) {
+    // ✅ 이름으로 회사 조회
+    public Company getCompanyByName(String name) {
+        List<Company> list = companyRepository.findByName(name);
+        if (list.isEmpty()) {
+            throw new RuntimeException("해당 이름의 회사를 찾을 수 없습니다: " + name);
+        }
+        return list.get(0); // 첫 번째만 사용
+    }
+
+    public CompanyDto convertToDto(Company company) {
         return CompanyDto.builder()
                 .id(company.getId())
                 .name(company.getName())
