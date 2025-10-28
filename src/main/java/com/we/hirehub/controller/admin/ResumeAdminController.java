@@ -15,13 +15,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
  * ✅ 관리자 - 이력서 관리 API
+ * - 목록:  /api/admin/resume-management            (유지)
+ * - 상세:  /api/admin/resume-management/detail/{id} (★ 변경: AdminController와 경로 충돌 회피)
  */
 @Slf4j
 @RestController
@@ -32,7 +33,7 @@ public class ResumeAdminController {
     private final ResumeAdminService resumeService;
     private final S3Service s3Service;
 
-    /** ✅ [1] 이력서 목록 조회 */
+    /** ✅ [1] 이력서 목록 조회 (유지) */
     @GetMapping
     public ResponseEntity<?> getAllResumes(
             @RequestParam(defaultValue = "0") int page,
@@ -64,12 +65,12 @@ public class ResumeAdminController {
 
         } catch (Exception e) {
             log.error("❌ 관리자 이력서 목록 조회 실패", e);
-            return ResponseEntity.internalServerError().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.internalServerError().body(err(e.getMessage()));
         }
     }
 
-    /** ✅ [2] 이력서 상세 조회 */
-    @GetMapping("/{resumeId}")
+    /** ✅ [2] 이력서 상세 조회 (★ 경로 변경: /detail/{resumeId}) */
+    @GetMapping("/detail/{resumeId}")
     public ResponseEntity<?> getResumeById(@PathVariable Long resumeId) {
         try {
             Resume resume = resumeService.getResumeById(resumeId);
@@ -83,10 +84,10 @@ public class ResumeAdminController {
 
         } catch (IllegalArgumentException e) {
             log.warn("⚠️ 이력서 조회 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err(e.getMessage()));
         } catch (Exception e) {
             log.error("❌ 이력서 상세 조회 중 오류", e);
-            return ResponseEntity.internalServerError().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.internalServerError().body(err(e.getMessage()));
         }
     }
 
@@ -95,7 +96,7 @@ public class ResumeAdminController {
     public ResponseEntity<?> createResume(@RequestBody Resume resume) {
         try {
             if (resume.getTitle() == null || resume.getTitle().isBlank()) {
-                return ResponseEntity.badRequest().body(createErrorResponse("이력서 제목이 필요합니다"));
+                return ResponseEntity.badRequest().body(err("이력서 제목이 필요합니다"));
             }
 
             Resume created = resumeService.createResume(resume);
@@ -109,11 +110,11 @@ public class ResumeAdminController {
 
         } catch (Exception e) {
             log.error("❌ 이력서 생성 실패", e);
-            return ResponseEntity.internalServerError().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.internalServerError().body(err(e.getMessage()));
         }
     }
 
-    /** ✅ [4] 이력서 수정 */
+    /** ✅ </> 이력서 수정 */
     @PutMapping("/{resumeId}")
     public ResponseEntity<?> updateResume(
             @PathVariable Long resumeId,
@@ -121,7 +122,7 @@ public class ResumeAdminController {
 
         try {
             if (resumeId == null || resumeId <= 0) {
-                return ResponseEntity.badRequest().body(createErrorResponse("유효한 이력서 ID가 필요합니다"));
+                return ResponseEntity.badRequest().body(err("유효한 이력서 ID가 필요합니다"));
             }
 
             Resume updated = resumeService.updateResume(resumeId, updateData);
@@ -136,10 +137,10 @@ public class ResumeAdminController {
 
         } catch (IllegalArgumentException e) {
             log.warn("⚠️ 이력서 수정 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err(e.getMessage()));
         } catch (Exception e) {
             log.error("❌ 이력서 수정 중 오류", e);
-            return ResponseEntity.internalServerError().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.internalServerError().body(err(e.getMessage()));
         }
     }
 
@@ -148,12 +149,11 @@ public class ResumeAdminController {
     public ResponseEntity<?> deleteResume(@PathVariable Long resumeId) {
         try {
             if (resumeId == null || resumeId <= 0) {
-                return ResponseEntity.badRequest().body(createErrorResponse("유효한 이력서 ID가 필요합니다"));
+                return ResponseEntity.badRequest().body(err("유효한 이력서 ID가 필요합니다"));
             }
 
             Resume resume = resumeService.getResumeById(resumeId);
 
-            // S3 증명사진 삭제
             if (resume.getIdPhoto() != null && !resume.getIdPhoto().isEmpty()) {
                 try {
                     s3Service.deleteFile(resume.getIdPhoto());
@@ -173,10 +173,10 @@ public class ResumeAdminController {
 
         } catch (IllegalArgumentException e) {
             log.warn("⚠️ 이력서 삭제 실패: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(err(e.getMessage()));
         } catch (Exception e) {
             log.error("❌ 이력서 삭제 중 오류", e);
-            return ResponseEntity.internalServerError().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.internalServerError().body(err(e.getMessage()));
         }
     }
 
@@ -194,10 +194,10 @@ public class ResumeAdminController {
             ));
 
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.badRequest().body(err(e.getMessage()));
         } catch (Exception e) {
             log.error("❌ 이력서 잠금 중 오류", e);
-            return ResponseEntity.internalServerError().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.internalServerError().body(err(e.getMessage()));
         }
     }
 
@@ -215,10 +215,10 @@ public class ResumeAdminController {
             ));
 
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.badRequest().body(err(e.getMessage()));
         } catch (Exception e) {
             log.error("❌ 이력서 잠금 해제 중 오류", e);
-            return ResponseEntity.internalServerError().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.internalServerError().body(err(e.getMessage()));
         }
     }
 
@@ -243,19 +243,15 @@ public class ResumeAdminController {
             ));
 
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(createErrorResponse(e.getMessage()));
+            return ResponseEntity.badRequest().body(err(e.getMessage()));
         } catch (Exception e) {
             log.error("❌ 증명사진 업로드 실패", e);
             return ResponseEntity.internalServerError()
-                    .body(createErrorResponse("업로드 실패: " + e.getMessage()));
+                    .body(err("업로드 실패: " + e.getMessage()));
         }
     }
 
-    /** 공통 에러 응답 */
-    private Map<String, Object> createErrorResponse(String message) {
-        return Map.of(
-                "success", false,
-                "message", message
-        );
+    private Map<String, Object> err(String message) {
+        return Map.of("success", false, "message", message);
     }
 }
