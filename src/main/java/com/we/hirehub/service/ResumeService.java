@@ -58,7 +58,6 @@ public class ResumeService {
         Resume resume = resumeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("이력서를 찾을 수 없습니다."));
 
-        // locked만으로 판정
         if (resume.isLocked() || resumeRepository.existsByIdAndLockedTrue(id)) {
             throw new ForbiddenEditException("이미 제출된 이력서는 수정할 수 없습니다.");
         }
@@ -80,6 +79,10 @@ public class ResumeService {
                 r.getIdPhoto(),
                 r.getEssayTittle(),
                 r.getEssayContent(),
+
+                /* ✅ ResumeDto의 5번째 String 자리(placeholder) */
+                null, // TODO: 실제 필드 확정 시 교체
+
                 r.isLocked(),
                 r.getCreateAt(),
                 r.getUpdateAt()

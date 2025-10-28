@@ -15,6 +15,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/mypage")
+@CrossOrigin(origins="http://localhost:3000", allowCredentials = "true")
 public class MyPageRestController {
 
     private final MyPageService myPageService;

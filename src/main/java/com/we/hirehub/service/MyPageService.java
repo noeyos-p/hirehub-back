@@ -9,9 +9,6 @@ import com.we.hirehub.exception.ForbiddenEditException;
 import com.we.hirehub.exception.ResourceNotFoundException;
 import com.we.hirehub.repository.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
-import org.springframework.beans.BeanWrapper;
-import org.springframework.beans.BeanWrapperImpl;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -114,6 +111,10 @@ public class MyPageService {
                 r.getIdPhoto(),
                 r.getEssayTittle(),
                 r.getEssayContent(),
+
+                /* ✅ ResumeDto의 5번째 String 자리(placeholder) */
+                null, // TODO: 향후 실제 필드(예: fileUrl/portfolioLink/status 등)로 교체
+
                 r.isLocked(),
                 r.getCreateAt(),
                 r.getUpdateAt()
@@ -122,18 +123,15 @@ public class MyPageService {
 
     /* ===================== 프로필 ===================== */
 
-    // 엔티티의 dob(String) → LocalDate 변환
     private LocalDate parseDob(String dob) {
         if (dob == null || dob.isBlank()) return null;
         try {
-            // DB에 "yyyy-MM-dd" 문자열로 저장한다고 가정
             return LocalDate.parse(dob);
         } catch (Exception e) {
             return null;
         }
     }
 
-    // LocalDate → 나이 계산
     private Integer calcAge(LocalDate birth) {
         if (birth == null) return null;
         var today = LocalDate.now();
@@ -149,11 +147,7 @@ public class MyPageService {
         MyProfileDto dto = new MyProfileDto();
         dto.setId(u.getId());
         dto.setEmail(u.getEmail());
-
-        // ✅ 추가: 엔티티 → DTO
         dto.setNickname(u.getNickname());
-
-        // 공통 필드
         dto.setName(u.getName());
         dto.setPhone(u.getPhone());
         dto.setGender(u.getGender());
@@ -161,7 +155,6 @@ public class MyPageService {
         dto.setPosition(u.getPosition());
         dto.setEducation(u.getEducation());
 
-        // dob(String) -> birth(LocalDate) + age 계산
         LocalDate birth = parseDob(u.getDob());
         dto.setBirth(birth);
         dto.setAge(calcAge(birth));
@@ -176,10 +169,7 @@ public class MyPageService {
         Users u = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
 
-        // ✅ 추가: DTO → 엔티티
         if (req.getNickname() != null) u.setNickname(req.getNickname());
-
-        // 이름/연락처/공통
         if (req.getName() != null)       u.setName(req.getName());
         if (req.getPhone() != null)      u.setPhone(req.getPhone());
         if (req.getGender() != null)     u.setGender(req.getGender());
@@ -187,7 +177,6 @@ public class MyPageService {
         if (req.getPosition() != null)   u.setPosition(req.getPosition());
         if (req.getEducation() != null)  u.setEducation(req.getEducation());
 
-        // 매핑명 상이
         if (req.getBirth() != null)      u.setDob(req.getBirth().toString());
         if (req.getRegion() != null)     u.setLocation(req.getRegion());
         if (req.getCareer() != null)     u.setCareerLevel(req.getCareer());
@@ -195,8 +184,6 @@ public class MyPageService {
         Users saved = userRepository.save(u);
         return getProfile(saved.getId());
     }
-
-
 
     // ====== 지원내역 조회 (기존 유지) ======
 
@@ -216,18 +203,15 @@ public class MyPageService {
     // ===== 즐겨찾기: 추가 C =====
     @Transactional
     public FavoriteCompanySummaryDto addFavoriteCompany(Long userId, Long companyId) {
-        // 유저/회사 존재 체크
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
         var company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("회사를 찾을 수 없습니다. id=" + companyId));
 
-        // 중복이면 그대로 반환(멱등)
         var existed = favoriteCompanyRepository.findByUsers_IdAndCompany_Id(userId, companyId)
                 .orElse(null);
         if (existed != null) return toSummary(existed);
 
-        // 새로 저장
         var fav = new FavoriteCompany();
         fav.setUsers(user);
         fav.setCompany(company);
@@ -236,7 +220,7 @@ public class MyPageService {
         return toSummary(saved);
     }
 
-    // ===== 즐겨찾기: 목록 R (이미 있을 경우 이 메서드와 시그니처 맞춰 사용) =====
+    // ===== 즐겨찾기: 목록 R =====
     public PagedResponse<FavoriteCompanySummaryDto> listFavoriteCompanies(Long userId, int page, int size) {
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
         var p = favoriteCompanyRepository.findByUsers_Id(userId, pageable);
@@ -244,12 +228,11 @@ public class MyPageService {
         return new PagedResponse<>(items, p.getNumber(), p.getSize(), p.getTotalElements(), p.getTotalPages());
     }
 
-    // ===== 즐겨찾기: 삭제 D (이미 있으면 그대로 사용) =====
+    // ===== 즐겨찾기: 삭제 D =====
     @Transactional
     public void removeFavoriteCompany(Long userId, Long companyId) {
         favoriteCompanyRepository.deleteByUsers_IdAndCompany_Id(userId, companyId);
     }
-
 
     // ===== 변환 =====
     private FavoriteCompanySummaryDto toSummary(FavoriteCompany fc) {
@@ -258,12 +241,11 @@ public class MyPageService {
                 ? jobPostsRepository.countByCompany_Id(company.getId())
                 : 0L;
 
-        // ✅ @Builder 미사용 → 생성자 사용
         return new FavoriteCompanySummaryDto(
-                fc.getId(),                              // favoriteId
-                company != null ? company.getId() : null,// companyId
+                fc.getId(),
+                company != null ? company.getId() : null,
                 company != null ? company.getName() : null,
-                openCount                                // openPostCount
+                openCount
         );
     }
 }
