@@ -120,14 +120,54 @@ public class MyPageService {
         );
     }
 
-    // ====== 프로필 (기존 유지) ======
+    /* ===================== 프로필 ===================== */
+
+    // 엔티티의 dob(String) → LocalDate 변환
+    private LocalDate parseDob(String dob) {
+        if (dob == null || dob.isBlank()) return null;
+        try {
+            // DB에 "yyyy-MM-dd" 문자열로 저장한다고 가정
+            return LocalDate.parse(dob);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // LocalDate → 나이 계산
+    private Integer calcAge(LocalDate birth) {
+        if (birth == null) return null;
+        var today = LocalDate.now();
+        int age = today.getYear() - birth.getYear();
+        if (today.getDayOfYear() < birth.getDayOfYear()) age--;
+        return Math.max(age, 0);
+    }
 
     public MyProfileDto getProfile(Long userId) {
         Users u = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
 
         MyProfileDto dto = new MyProfileDto();
-        BeanUtils.copyProperties(u, dto);
+        dto.setId(u.getId());
+        dto.setEmail(u.getEmail());
+
+        // ✅ 추가: 엔티티 → DTO
+        dto.setNickname(u.getNickname());
+
+        // 공통 필드
+        dto.setName(u.getName());
+        dto.setPhone(u.getPhone());
+        dto.setGender(u.getGender());
+        dto.setAddress(u.getAddress());
+        dto.setPosition(u.getPosition());
+        dto.setEducation(u.getEducation());
+
+        // dob(String) -> birth(LocalDate) + age 계산
+        LocalDate birth = parseDob(u.getDob());
+        dto.setBirth(birth);
+        dto.setAge(calcAge(birth));
+
+        dto.setRegion(u.getLocation());
+        dto.setCareer(u.getCareerLevel());
         return dto;
     }
 
@@ -136,40 +176,27 @@ public class MyPageService {
         Users u = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
 
-        // ✅ 허용 필드만 부분 갱신 (email, id, password 등은 제외)
-        var allowed = java.util.Set.of(
-                "name","phone","birth","age","gender","address",
-                "region","position","career","education"
-        );
+        // ✅ 추가: DTO → 엔티티
+        if (req.getNickname() != null) u.setNickname(req.getNickname());
 
-        BeanWrapper target = new BeanWrapperImpl(u);
-        BeanWrapper source = new BeanWrapperImpl(req);
+        // 이름/연락처/공통
+        if (req.getName() != null)       u.setName(req.getName());
+        if (req.getPhone() != null)      u.setPhone(req.getPhone());
+        if (req.getGender() != null)     u.setGender(req.getGender());
+        if (req.getAddress() != null)    u.setAddress(req.getAddress());
+        if (req.getPosition() != null)   u.setPosition(req.getPosition());
+        if (req.getEducation() != null)  u.setEducation(req.getEducation());
 
-        for (var pd : source.getPropertyDescriptors()) {
-            String name = pd.getName();
-            if ("class".equals(name)) continue;
-            if (!allowed.contains(name)) continue;      // 🔒 화이트리스트
-            if (!target.isWritableProperty(name)) continue;
-
-            Object val = source.getPropertyValue(name);
-            if (val != null) {
-                try { target.setPropertyValue(name, val); } catch (Exception ignore) {}
-            }
-        }
-
-        // 타임스탬프 필드가 있으면 갱신
-        if (target.isWritableProperty("updateAt")) {
-            target.setPropertyValue("updateAt", LocalDate.now());
-        } else if (target.isWritableProperty("updatedAt")) {
-            target.setPropertyValue("updatedAt", java.time.LocalDateTime.now());
-        }
+        // 매핑명 상이
+        if (req.getBirth() != null)      u.setDob(req.getBirth().toString());
+        if (req.getRegion() != null)     u.setLocation(req.getRegion());
+        if (req.getCareer() != null)     u.setCareerLevel(req.getCareer());
 
         Users saved = userRepository.save(u);
-
-        MyProfileDto dto = new MyProfileDto();
-        BeanUtils.copyProperties(saved, dto);
-        return dto;
+        return getProfile(saved.getId());
     }
+
+
 
     // ====== 지원내역 조회 (기존 유지) ======
 
