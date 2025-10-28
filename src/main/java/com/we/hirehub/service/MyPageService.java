@@ -111,10 +111,7 @@ public class MyPageService {
                 r.getIdPhoto(),
                 r.getEssayTittle(),
                 r.getEssayContent(),
-
-                /* ✅ ResumeDto의 5번째 String 자리(placeholder) */
-                null, // TODO: 향후 실제 필드(예: fileUrl/portfolioLink/status 등)로 교체
-
+                r.getHtmlContent(),
                 r.isLocked(),
                 r.getCreateAt(),
                 r.getUpdateAt()
