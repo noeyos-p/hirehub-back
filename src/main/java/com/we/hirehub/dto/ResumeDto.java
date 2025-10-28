@@ -8,6 +8,7 @@ public record ResumeDto(
         String idPhoto,
         String essayTitle,
         String essayContent,
+        String htmlContent,  // 추가
         boolean locked,
         LocalDate createAt,
         LocalDate updateAt
