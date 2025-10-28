@@ -26,11 +26,27 @@ public class CommentDto {
     public static CommentDto fromEntity(Comments comment) {
         if (comment == null) return null;
 
+        String userNickname = null;
+        if (comment.getUsers() != null) {
+            // nickname 필드를 먼저 시도하고, 없으면 name 필드 사용
+            try {
+                userNickname = comment.getUsers().getNickname();
+            } catch (Exception e) {
+                // nickname 필드가 없는 경우 name 필드 시도
+                try {
+                    userNickname = comment.getUsers().getName();
+                } catch (Exception ex) {
+                    // 둘 다 없으면 email 사용
+                    userNickname = comment.getUsers().getEmail();
+                }
+            }
+        }
+
         return CommentDto.builder()
                 .id(comment.getId())
                 .content(comment.getContent())
                 .usersId(comment.getUsers() != null ? comment.getUsers().getId() : null)
-                .nickname(comment.getUsers() != null ? comment.getUsers().getNickname() : null)
+                .nickname(userNickname)
                 .boardId(comment.getBoard() != null ? comment.getBoard().getId() : null)
                 .boardTitle(comment.getBoard() != null ? comment.getBoard().getTitle() : null)
                 .parentCommentId(comment.getParentComments() != null ? comment.getParentComments().getId() : null)
