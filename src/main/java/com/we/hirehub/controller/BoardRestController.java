@@ -18,8 +18,9 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:3000")
 @RequiredArgsConstructor
 public class BoardRestController {
+
     private final BoardService boardService;
-    private final UsersRepository usersRepository; // ✅ 유저 조회용 추가
+    private final UsersRepository usersRepository;
 
     /** 전체 게시물 조회 */
     @GetMapping
@@ -33,28 +34,33 @@ public class BoardRestController {
         return boardService.getPopularBoards();
     }
 
+    /** ✅ 내가 쓴 게시물 조회 */
+    @GetMapping("/mine")
+    public ResponseEntity<?> getMyBoards(@AuthenticationPrincipal Long userId) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("로그인이 필요합니다.");
+        }
+        return ResponseEntity.ok(boardService.getMyBoards(userId));
+    }
+
     /** 게시물 작성 */
     @PostMapping
     public ResponseEntity<?> createBoard(@RequestBody BoardDto boardDto,
-                                         @AuthenticationPrincipal Long userId) { // ✅ userId로 받기
+                                         @AuthenticationPrincipal Long userId) {
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("로그인된 사용자만 게시글을 작성할 수 있습니다.");
         }
-
         try {
-            // ✅ userId를 통해 Users 엔티티 로드
             Users loggedInUser = usersRepository.findById(userId)
                     .orElseThrow(() -> new IllegalArgumentException("유저를 찾을 수 없습니다."));
-
-            // ✅ 로그인한 유저로 게시글 생성
             Board board = boardService.createBoard(
                     boardDto.getTitle(),
                     boardDto.getContent(),
                     loggedInUser
             );
             return ResponseEntity.ok(board);
-
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -74,7 +80,6 @@ public class BoardRestController {
         return boardService.incrementView(id);
     }
 
-
     /** 게시글 삭제 */
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteBoard(@PathVariable Long id,
@@ -83,14 +88,12 @@ public class BoardRestController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("로그인된 사용자만 게시글을 삭제할 수 있습니다.");
         }
-
         try {
-            Board board = boardService.getBoardEntity(id); // 엔티티 조회용 메서드 필요
+            Board board = boardService.getBoardEntity(id);
             if (!board.getUsers().getId().equals(userId)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
                         .body("본인의 게시글만 삭제할 수 있습니다.");
             }
-
             boardService.deleteBoard(id);
             return ResponseEntity.ok("게시글이 삭제되었습니다.");
         } catch (Exception e) {
