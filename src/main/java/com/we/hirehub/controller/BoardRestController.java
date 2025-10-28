@@ -73,4 +73,30 @@ public class BoardRestController {
     public BoardDto incrementView(@PathVariable Long id) {
         return boardService.incrementView(id);
     }
+
+
+    /** 게시글 삭제 */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteBoard(@PathVariable Long id,
+                                         @AuthenticationPrincipal Long userId) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("로그인된 사용자만 게시글을 삭제할 수 있습니다.");
+        }
+
+        try {
+            Board board = boardService.getBoardEntity(id); // 엔티티 조회용 메서드 필요
+            if (!board.getUsers().getId().equals(userId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body("본인의 게시글만 삭제할 수 있습니다.");
+            }
+
+            boardService.deleteBoard(id);
+            return ResponseEntity.ok("게시글이 삭제되었습니다.");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("게시글 삭제 실패: " + e.getMessage());
+        }
+    }
 }
