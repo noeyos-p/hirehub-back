@@ -1,6 +1,5 @@
 package com.we.hirehub.service;
 
-import com.we.hirehub.dto.JobPostsDto;
 import com.we.hirehub.entity.Company;
 import com.we.hirehub.entity.JobPosts;
 import com.we.hirehub.repository.CompanyRepository;
@@ -13,7 +12,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class JobPostServiceImpl implements JobPostsService {
+public class JobPostServiceImpl implements JobPostsService{
 
     private final JobPostsRepository jobPostRepository;
     private final CompanyRepository companyRepository; // @Repository 인터페이스
@@ -95,3 +94,4 @@ public class JobPostServiceImpl implements JobPostsService {
 
 
 }
+
