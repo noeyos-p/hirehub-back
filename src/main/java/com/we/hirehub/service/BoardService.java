@@ -24,7 +24,7 @@ public class BoardService {
     private final UsersRepository usersRepository;
     private final CommentRepository commentRepository;
 
-    /** 게시글 생성 (with Users object) */
+    /** 게시글 생성 (with Users) */
     @Transactional
     public Board createBoard(String title, String content, Users user) {
         Board board = Board.builder()
@@ -73,7 +73,7 @@ public class BoardService {
         boardRepository.delete(board);
     }
 
-    /** 단일 게시글 조회 + 조회수 증가 */
+    /** 단일 조회(+조회수 증가) */
     @Transactional
     public BoardDto getBoard(Long boardId) {
         Board board = boardRepository.findById(boardId)
@@ -83,14 +83,14 @@ public class BoardService {
         return toDto(board);
     }
 
-    /** 전체 게시글 조회 (최신순) */
+    /** 전체 최신순 */
     @Transactional(readOnly = true)
     public List<BoardDto> getAllBoards() {
         return boardRepository.findAllByOrderByCreateAtDesc()
                 .stream().map(this::toDto).collect(Collectors.toList());
     }
 
-    /** 인기 게시물 조회 (조회수 기준 상위 5개) */
+    /** 인기 Top5 */
     @Transactional(readOnly = true)
     public List<BoardDto> getPopularBoards() {
         return boardRepository.findTop5ByOrderByViewsDesc()
@@ -106,17 +106,25 @@ public class BoardService {
         return toDto(boardRepository.save(board));
     }
 
-    /** ✅ (신규) 내가 쓴 게시글 조회 (최신순) */
+    /** ✅ 내 게시글 목록(최신순) */
     @Transactional(readOnly = true)
-    public List<BoardDto> getMyBoards(Long userId) {
+    public List<BoardDto> getBoardsByUser(Long userId) {
         return boardRepository.findByUsers_IdOrderByCreateAtDesc(userId)
                 .stream().map(this::toDto).collect(Collectors.toList());
     }
 
-    /** Board → BoardDto 변환 (댓글 포함) */
+    /** 엔티티 조회(권한 확인용) */
+    @Transactional(readOnly = true)
+    public Board getBoardEntity(Long boardId) {
+        return boardRepository.findById(boardId)
+                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
+    }
+
+    /** 엔티티 → DTO */
     private BoardDto toDto(Board board) {
         List<CommentDto> commentDtos = commentRepository.findByBoardId(board.getId())
                 .stream().map(CommentDto::fromEntity).collect(Collectors.toList());
+
         return BoardDto.builder()
                 .id(board.getId())
                 .title(board.getTitle())
@@ -128,12 +136,5 @@ public class BoardService {
                 .views(board.getViews())
                 .comments(commentDtos)
                 .build();
-    }
-
-    /** 엔티티 조회 (삭제/권한 체크용) */
-    @Transactional(readOnly = true)
-    public Board getBoardEntity(Long boardId) {
-        return boardRepository.findById(boardId)
-                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
     }
 }
