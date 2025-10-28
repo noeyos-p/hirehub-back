@@ -31,6 +31,7 @@ public class ReviewRestController {
         return reviewService.getAllReviews();
     }
 
+    // 수정
     /** 특정 회사 리뷰 조회 */
     @GetMapping("/company/{companyName}")
     public ResponseEntity<List<ReviewDto>> getReviewsByCompany(@PathVariable String companyName) {
