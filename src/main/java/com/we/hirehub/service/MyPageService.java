@@ -249,9 +249,10 @@ public class MyPageService {
         return applies.stream()
                 .map(a -> new ApplyResponse(
                         a.getId(),
+                        a.getResume() != null ? a.getResume().getId() : null, // ✅ resumeId
                         a.getJobPosts().getCompany().getName(),
                         a.getResume().getTitle(),
-                        a.getApplyAt()
+                        a.getApplyAt() // LocalDate -> appliedAt
                 ))
                 .collect(Collectors.toList());
     }
