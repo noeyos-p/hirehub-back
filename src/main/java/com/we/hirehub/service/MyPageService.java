@@ -1,10 +1,7 @@
 package com.we.hirehub.service;
 
 import com.we.hirehub.dto.*;
-import com.we.hirehub.entity.Apply;
-import com.we.hirehub.entity.FavoriteCompany;
-import com.we.hirehub.entity.Resume;
-import com.we.hirehub.entity.Users;
+import com.we.hirehub.entity.*;
 import com.we.hirehub.exception.ForbiddenEditException;
 import com.we.hirehub.exception.ResourceNotFoundException;
 import com.we.hirehub.repository.*;
@@ -243,6 +240,37 @@ public class MyPageService {
                 company != null ? company.getId() : null,
                 company != null ? company.getName() : null,
                 openCount
+        );
+    }
+
+    @Transactional
+    public ApplyResponse applyToJob(Long userId, Long jobPostId, Long resumeId) {
+        // 이력서 조회 및 소유권 확인
+        Resume resume = resumeRepository.findByIdAndUsers_Id(resumeId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("이력서를 찾을 수 없습니다."));
+
+        // 공고 조회
+        JobPosts jobPost = jobPostsRepository.findById(jobPostId)
+                .orElseThrow(() -> new ResourceNotFoundException("공고를 찾을 수 없습니다."));
+
+        // 이력서 잠금 (제출 후 수정 불가)
+        resume.setLocked(true);
+        resumeRepository.save(resume);
+
+        // 지원 내역 생성
+        Apply apply = Apply.builder()
+                .resume(resume)
+                .jobPosts(jobPost)
+                .applyAt(LocalDate.now())
+                .build();
+
+        Apply saved = applyRepository.save(apply);
+
+        return new ApplyResponse(
+                saved.getId(),
+                jobPost.getCompany().getName(),
+                resume.getTitle(),
+                saved.getApplyAt()
         );
     }
 }
