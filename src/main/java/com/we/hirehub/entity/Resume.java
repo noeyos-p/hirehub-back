@@ -52,4 +52,7 @@ public class Resume {
     // 지원완료 된 이력서 여부
     @Column(nullable = false)
     private boolean locked;
+
+    @Column(columnDefinition = "LONGTEXT")
+    private String htmlContent;
 }
