@@ -83,6 +83,7 @@ public class MyPageRestController {
         return ResponseEntity.ok(myPageService.updateProfile(userId(auth), req));
     }
 
+
     // ====== 지원내역 (기존 유지) ======
 
     @GetMapping("/applies")

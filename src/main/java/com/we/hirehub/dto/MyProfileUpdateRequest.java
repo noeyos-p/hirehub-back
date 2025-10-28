@@ -39,5 +39,8 @@ public class MyProfileUpdateRequest {
     @Size(max = 50)
     private String education;
 
+    @Size(max = 50)
+    private String nickname;
+
     // ⚠ email 필드는 아예 두지 않는다(불변).
 }

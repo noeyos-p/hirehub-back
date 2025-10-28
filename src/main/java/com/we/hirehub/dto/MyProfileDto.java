@@ -24,4 +24,5 @@ public class MyProfileDto {
     private String position;       // 직무
     private String career;         // 경력 (예: "신입", "3년")
     private String education;      // 학력
+    private String nickname; // 닉네임
 }
