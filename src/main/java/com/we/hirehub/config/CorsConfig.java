@@ -19,6 +19,8 @@ public class CorsConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration c = new CorsConfiguration();
+        // 테스트용
+        /*c.setAllowedOriginPatterns(List.of("*"));*/
         c.setAllowedOriginPatterns(List.of(origin1, origin2));
         c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         c.setAllowedHeaders(List.of("*"));

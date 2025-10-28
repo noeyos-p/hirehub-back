@@ -148,7 +148,7 @@ public class BoardService {
                 .title(board.getTitle())
                 .content(board.getContent())
                 .usersId(board.getUsers() != null ? board.getUsers().getId() : null)
-                .usersName(board.getUsers() != null ? board.getUsers().getName() : "익명")
+                .nickname(board.getUsers() != null ? board.getUsers().getNickname() : "익명")
                 .createAt(board.getCreateAt())
                 .updateAt(board.getUpdateAt())
                 .views(board.getViews())

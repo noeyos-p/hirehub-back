@@ -29,7 +29,7 @@ public class SecurityConfig {
     private final PasswordEncoder passwordEncoder;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthEntryPoint jwtAuthEntryPoint;
-    private final OAuth2LoginHandler oAuth2LoginHandler;  // ← 추가
+    private final OAuth2LoginHandler oAuth2LoginHandler;
 
     @Bean
     public DaoAuthenticationProvider daoAuthProvider() {
@@ -53,24 +53,31 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
+                        // 공개 API (인증 불필요)
                         .requestMatchers("/api/auth/**", "/error").permitAll()
-                        .requestMatchers("/oauth2/**").permitAll()
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+
+                        // 관리자 전용 API (ADMIN 권한 필요) - 순서가 중요!
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/admin/**").hasRole("ADMIN")
+
+                        // 나머지는 인증 필요
                         .anyRequest().authenticated()
                 )
 
                 .formLogin(login -> login.disable())
 
-                // ✅ OAuth2 로그인 활성화
+                // OAuth2 로그인
                 .oauth2Login(oauth -> oauth
-                        .successHandler(oAuth2LoginHandler)  // 성공 시 핸들러
-                        .failureHandler(oAuth2LoginHandler)  // 실패 시 핸들러
+                        .successHandler(oAuth2LoginHandler)
+                        .failureHandler(oAuth2LoginHandler)
                 )
 
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(jwtAuthEntryPoint)
                 )
 
+                // JWT 필터 추가
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
