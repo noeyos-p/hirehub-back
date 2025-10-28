@@ -64,6 +64,7 @@ public class JobPostController {
     public JobPostsDto createJobPost(@RequestBody JobPostsDto jobPostsDto) {
         return jobPostService.createJobPost(jobPostsDto);
     }
+
     // 스크랩 추가 (c)
     @PostMapping("/{jobPostId}/scrap")
     public ResponseEntity<FavoriteJobPostSummaryDto> scrap(Authentication auth,
@@ -71,6 +72,7 @@ public class JobPostController {
         Long uid = userId(auth);
         return ResponseEntity.ok(jobPostScrapService.add(uid, jobPostId));
     }
+
     /** 달력 렌더링용: 범위 내 마감일 데이터 */
     @GetMapping("/calendar")
     public List<CalendarDayDto> getCalendar(

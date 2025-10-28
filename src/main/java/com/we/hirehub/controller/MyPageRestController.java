@@ -91,6 +91,19 @@ public class MyPageRestController {
         return ResponseEntity.ok(myPageService.getMyApplyList(userId(auth)));
     }
 
+    // ====== 기업 즐겨찾기 CRUD ======
+
+
+    // (C) 즐겨찾기 추가 ⭐ 새로 추가
+    @PostMapping("/favorites/companies/{companyId}")
+    public ResponseEntity<FavoriteCompanySummaryDto> addFavoriteCompany(
+            Authentication auth,
+            @PathVariable Long companyId
+    ) {
+        FavoriteCompanySummaryDto dto = myPageService.addFavoriteCompany(userId(auth), companyId);
+        return ResponseEntity.ok(dto);
+    }
+
     // (R) 목록
     @GetMapping("/favorites/companies")
     public PagedResponse<FavoriteCompanySummaryDto> favoriteCompanies(Authentication auth,
@@ -106,6 +119,17 @@ public class MyPageRestController {
         return ResponseEntity.noContent().build();
     }
 
+    // ====== 공고 스크랩 CRUD ======
+
+    // (C) 스크랩 추가
+    @PostMapping("/favorites/jobposts/{jobPostId}")
+    public ResponseEntity<FavoriteJobPostSummaryDto> addScrapJobPost(
+            Authentication auth,
+            @PathVariable Long jobPostId
+    ) {
+        FavoriteJobPostSummaryDto dto = jobPostScrapService.add(userId(auth), jobPostId);
+        return ResponseEntity.ok(dto);
+    }
 
     // 스크랩 목록 조회 (R)
     @GetMapping("/favorites/jobposts")
