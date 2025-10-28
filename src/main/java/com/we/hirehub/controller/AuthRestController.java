@@ -8,6 +8,7 @@ import com.we.hirehub.repository.UsersRepository;
 import com.we.hirehub.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +25,7 @@ import java.util.Map;
  * - OAuth2 구글 로그인/회원가입
  * - 현재 사용자 정보 조회
  */
+@Slf4j
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/auth")
@@ -43,22 +45,49 @@ public class AuthRestController {
      */
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(@RequestBody LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+        try {
+            log.info("로그인 시도: {}", request.getEmail());
 
-        Users user = usersRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+            // 1. 인증
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+            );
 
-        String accessToken = tokenProvider.createToken(request.getEmail(), user.getId());
+            log.info("인증 성공: {}", request.getEmail());
 
-        return ResponseEntity.ok(Map.of(
-                "tokenType", "Bearer",
-                "accessToken", accessToken,
-                "requiresOnboarding", false  // 로그인은 온보딩 불필요
-        ));
+            // 2. 사용자 정보 조회
+            Users user = usersRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+            log.info("사용자 조회 성공 - ID: {}, Role: {}", user.getId(), user.getRole());
+
+            // 3. JWT 토큰 생성
+            String accessToken = tokenProvider.createToken(request.getEmail(), user.getId());
+
+            // 4. 응답 생성 (role 추가!)
+            Map<String, Object> response = Map.of(
+                    "success", true,
+                    "tokenType", "Bearer",
+                    "accessToken", accessToken,
+                    "role", user.getRole().name(),  // ← ADMIN 또는 USER
+                    "email", user.getEmail(),
+                    "userId", user.getId(),
+                    "requiresOnboarding", false  // 로그인은 온보딩 불필요
+            );
+
+            log.info("✅ 로그인 완료 - 이메일: {}, Role: {}", user.getEmail(), user.getRole());
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            log.error("❌ 로그인 실패: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "이메일 또는 비밀번호가 올바르지 않습니다."
+                    ));
+        }
     }
-
 
     /**
      * 일반 회원가입 (이메일/비밀번호)
@@ -77,6 +106,7 @@ public class AuthRestController {
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "tokenType", "Bearer",
                 "accessToken", accessToken,
+                "role", user.getRole().name(),  // ← 회원가입에도 role 추가
                 "message", "회원가입이 완료되었습니다. 온보딩을 진행해주세요.",
                 "requiresOnboarding", "true"
         ));

@@ -14,9 +14,11 @@ public class CommentDto {
     private Long id;
     private String content;
     private Long usersId;
-    private String usersName;        // 작성자 이름
+    private String nickname;             // 작성자 닉네임
     private Long boardId;
-    private Long parentCommentId;    // 상위 댓글 ID
+    private String boardTitle;           // 게시글 제목
+    private Long parentCommentId;        // 상위 댓글 ID
+    private String parentCommentContent; // 상위 댓글 내용 (답글인 경우)
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
 
@@ -28,9 +30,11 @@ public class CommentDto {
                 .id(comment.getId())
                 .content(comment.getContent())
                 .usersId(comment.getUsers() != null ? comment.getUsers().getId() : null)
-                .usersName(comment.getUsers() != null ? comment.getUsers().getName() : null)
+                .nickname(comment.getUsers() != null ? comment.getUsers().getNickname() : null)
                 .boardId(comment.getBoard() != null ? comment.getBoard().getId() : null)
+                .boardTitle(comment.getBoard() != null ? comment.getBoard().getTitle() : null)
                 .parentCommentId(comment.getParentComments() != null ? comment.getParentComments().getId() : null)
+                .parentCommentContent(comment.getParentComments() != null ? comment.getParentComments().getContent() : null)
                 .createAt(comment.getCreateAt())
                 .updateAt(comment.getUpdateAt())
                 .build();

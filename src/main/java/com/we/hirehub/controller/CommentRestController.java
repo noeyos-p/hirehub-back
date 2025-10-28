@@ -77,7 +77,7 @@ public class CommentRestController {
                             .id(comment.getId())
                             .content(comment.getContent())
                             .usersId(comment.getUsers() != null ? comment.getUsers().getId() : null)
-                            .usersName(comment.getUsers() != null ? comment.getUsers().getName() : "익명")
+                            .nickname(comment.getUsers() != null ? comment.getUsers().getNickname() : "익명")
                             .boardId(comment.getBoard() != null ? comment.getBoard().getId() : null)
                             .parentCommentId(comment.getParentComments() != null ? comment.getParentComments().getId() : null)
                             .createAt(comment.getCreateAt())

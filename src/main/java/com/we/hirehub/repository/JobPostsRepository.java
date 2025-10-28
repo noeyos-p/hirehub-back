@@ -13,6 +13,9 @@ import java.util.List;
 @Repository
 public interface JobPostsRepository extends JpaRepository<JobPosts, Long> {
 
+    // 페이징
+    Page<JobPosts> findAll(Pageable pageable);
+
     // 기존 검색 메서드
     List<JobPosts> findByLocationContaining(String location);
     List<JobPosts> findByCareerLevelContaining(String careerLevel);
@@ -42,4 +45,3 @@ public interface JobPostsRepository extends JpaRepository<JobPosts, Long> {
             "group by j.endAt")
     List<Object[]> countByEndAtBetween(LocalDate from, LocalDate to);
 }
-

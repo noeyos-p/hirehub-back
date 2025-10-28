@@ -17,7 +17,7 @@ public class BoardDto {
     private String content;        // 게시글 내용
 
     private Long usersId;          // 작성자 ID
-    private String usersName;      // 작성자 이름
+    private String nickname;      // 작성자 이름
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createAt; // 작성일
