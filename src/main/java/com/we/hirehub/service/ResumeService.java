@@ -79,11 +79,8 @@ public class ResumeService {
                 r.getIdPhoto(),
                 r.getEssayTittle(),
                 r.getEssayContent(),
-
-                /* ✅ ResumeDto의 5번째 String 자리(placeholder) */
-                null, // TODO: 실제 필드 확정 시 교체
-
-                r.isLocked(),
+                r.getHtmlContent(),
+                                r.isLocked(),
                 r.getCreateAt(),
                 r.getUpdateAt()
         );
