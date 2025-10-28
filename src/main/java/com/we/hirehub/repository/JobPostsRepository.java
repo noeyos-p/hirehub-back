@@ -21,6 +21,8 @@ public interface JobPostsRepository extends JpaRepository<JobPosts, Long> {
     List<JobPosts> findByCareerLevelContaining(String careerLevel);
     List<JobPosts> findByTitleContaining(String keyword);
 
+
+
     // ★ 추가: 회사명으로 공고 수 카운트 (상태 필드 없이 전체 공고 수)
     long countByCompany_Id(Long companyId);
 

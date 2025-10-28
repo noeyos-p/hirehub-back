@@ -17,20 +17,33 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 마이페이지 서비스
+ * - 이력서 CRUD
+ * - 내 프로필 조회 및 수정
+ * - 지원내역 조회
+ * - 즐겨찾기(기업/공고) 관리
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class MyPageService {
 
+    // ===== Repository 의존성 주입 =====
     private final ResumeRepository resumeRepository;
     private final UserRepository userRepository;
-    private final ApplyRepository applyRepository;                 // ✅ 기존
-    private final FavoriteCompanyRepository favoriteCompanyRepository; // ⭐ 추가
-    private final JobPostsRepository jobPostsRepository;               // ⭐ 추가
-    private final CompanyRepository companyRepository;                 // (선택) 이름 기반이 필요할 때
+    private final ApplyRepository applyRepository;
+    private final FavoriteCompanyRepository favoriteCompanyRepository;
+    private final JobPostsRepository jobPostsRepository;
+    private final CompanyRepository companyRepository;
 
-    // ====== 이력서 CRUD (기존 유지) ======
+    /* ==========================================================
+       =============== [1] 이력서 CRUD 관련 로직 ===============
+       ========================================================== */
 
+    /**
+     * ✅ 이력서 목록 조회
+     */
     public PagedResponse<ResumeDto> list(Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "updateAt"));
         Page<Resume> p = resumeRepository.findByUsers_Id(userId, pageable);
@@ -41,12 +54,18 @@ public class MyPageService {
         );
     }
 
+    /**
+     * ✅ 이력서 단건 조회
+     */
     public ResumeDto get(Long userId, Long resumeId) {
         Resume resume = resumeRepository.findByIdAndUsers_Id(resumeId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("이력서를 찾을 수 없습니다."));
         return toDto(resume);
     }
 
+    /**
+     * ✅ 이력서 생성
+     */
     @Transactional
     public ResumeDto create(Long userId, ResumeUpsertRequest req) {
         Users user = userRepository.findById(userId)
@@ -67,15 +86,20 @@ public class MyPageService {
         return toDto(saved);
     }
 
+    /**
+     * ✅ 이력서 수정
+     */
     @Transactional
     public ResumeDto update(Long userId, Long resumeId, ResumeUpsertRequest req) {
         Resume resume = resumeRepository.findByIdAndUsers_Id(resumeId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("이력서를 찾을 수 없습니다."));
 
+        // 이미 제출된 이력서는 수정 금지
         if (resume.isLocked() || resumeRepository.existsByIdAndUsers_IdAndLockedTrue(resumeId, userId)) {
             throw new ForbiddenEditException("이미 제출된 이력서는 수정할 수 없습니다.");
         }
 
+        // 내용 갱신
         resume.setTitle(req.title());
         resume.setIdPhoto(req.idPhoto());
         resume.setEssayTittle(req.essayTitle());
@@ -87,13 +111,14 @@ public class MyPageService {
     }
 
     /**
-     * 🔥 삭제 (CRUD의 D)
+     * ✅ 이력서 삭제
      */
     @Transactional
     public void delete(Long userId, Long resumeId) {
         Resume resume = resumeRepository.findByIdAndUsers_Id(resumeId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("이력서를 찾을 수 없습니다."));
 
+        // 잠금된 이력서는 삭제 불가
         if (resume.isLocked() || resumeRepository.existsByIdAndUsers_IdAndLockedTrue(resumeId, userId)) {
             throw new ForbiddenEditException("이미 제출된 이력서는 삭제할 수 없습니다.");
         }
@@ -101,7 +126,29 @@ public class MyPageService {
         resumeRepository.delete(resume);
     }
 
+    /**
+     * ✅ Resume → ResumeDto 변환
+     *    + 사용자의 온보딩(프로필) 데이터(UserProfileMiniDto) 추가
+     */
     private ResumeDto toDto(Resume r) {
+        Users u = r.getUsers();
+        UserProfileMiniDto profile = null;
+
+        // 🧩 온보딩(회원) 정보 매핑
+        if (u != null) {
+            profile = new UserProfileMiniDto(
+                    u.getId(),
+                    u.getNickname(),
+                    u.getName(),
+                    u.getPhone(),
+                    u.getGender(),
+                    (u.getDob() != null ? LocalDate.parse(u.getDob()) : null),
+                    u.getAddress(),
+                    u.getEmail()
+            );
+        }
+
+        // 🧩 ResumeDto 반환 (기존 + profile 추가)
         return new ResumeDto(
                 r.getId(),
                 r.getTitle(),
@@ -111,11 +158,14 @@ public class MyPageService {
                 r.getHtmlContent(),
                 r.isLocked(),
                 r.getCreateAt(),
-                r.getUpdateAt()
+                r.getUpdateAt(),
+                profile // ✅ 온보딩 값 포함
         );
     }
 
-    /* ===================== 프로필 ===================== */
+    /* ==========================================================
+       =============== [2] 내 프로필 (온보딩 데이터) ===============
+       ========================================================== */
 
     private LocalDate parseDob(String dob) {
         if (dob == null || dob.isBlank()) return null;
@@ -134,6 +184,9 @@ public class MyPageService {
         return Math.max(age, 0);
     }
 
+    /**
+     * ✅ 프로필 조회 (온보딩 데이터)
+     */
     public MyProfileDto getProfile(Long userId) {
         Users u = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
@@ -158,29 +211,36 @@ public class MyPageService {
         return dto;
     }
 
+    /**
+     * ✅ 프로필 수정 (온보딩 데이터 수정)
+     */
     @Transactional
     public MyProfileDto updateProfile(Long userId, MyProfileUpdateRequest req) {
         Users u = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("회원 정보를 찾을 수 없습니다."));
 
         if (req.getNickname() != null) u.setNickname(req.getNickname());
-        if (req.getName() != null)       u.setName(req.getName());
-        if (req.getPhone() != null)      u.setPhone(req.getPhone());
-        if (req.getGender() != null)     u.setGender(req.getGender());
-        if (req.getAddress() != null)    u.setAddress(req.getAddress());
-        if (req.getPosition() != null)   u.setPosition(req.getPosition());
-        if (req.getEducation() != null)  u.setEducation(req.getEducation());
-
-        if (req.getBirth() != null)      u.setDob(req.getBirth().toString());
-        if (req.getRegion() != null)     u.setLocation(req.getRegion());
-        if (req.getCareer() != null)     u.setCareerLevel(req.getCareer());
+        if (req.getName() != null) u.setName(req.getName());
+        if (req.getPhone() != null) u.setPhone(req.getPhone());
+        if (req.getGender() != null) u.setGender(req.getGender());
+        if (req.getAddress() != null) u.setAddress(req.getAddress());
+        if (req.getPosition() != null) u.setPosition(req.getPosition());
+        if (req.getEducation() != null) u.setEducation(req.getEducation());
+        if (req.getBirth() != null) u.setDob(req.getBirth().toString());
+        if (req.getRegion() != null) u.setLocation(req.getRegion());
+        if (req.getCareer() != null) u.setCareerLevel(req.getCareer());
 
         Users saved = userRepository.save(u);
         return getProfile(saved.getId());
     }
 
-    // ====== 지원내역 조회 (기존 유지) ======
+    /* ==========================================================
+       =============== [3] 지원내역 관련 로직 ===============
+       ========================================================== */
 
+    /**
+     * ✅ 내가 지원한 내역 리스트 조회
+     */
     public List<ApplyResponse> getMyApplyList(Long userId) {
         List<Apply> applies = applyRepository.findByResume_Users_Id(userId);
 
@@ -194,7 +254,13 @@ public class MyPageService {
                 .collect(Collectors.toList());
     }
 
-    // ===== 즐겨찾기: 추가 C =====
+    /* ==========================================================
+       =============== [4] 기업 즐겨찾기 CRUD ===============
+       ========================================================== */
+
+    /**
+     * ✅ 즐겨찾기 추가 (기업)
+     */
     @Transactional
     public FavoriteCompanySummaryDto addFavoriteCompany(Long userId, Long companyId) {
         var user = userRepository.findById(userId)
@@ -214,7 +280,9 @@ public class MyPageService {
         return toSummary(saved);
     }
 
-    // ===== 즐겨찾기: 목록 R =====
+    /**
+     * ✅ 즐겨찾기 목록 조회 (기업)
+     */
     public PagedResponse<FavoriteCompanySummaryDto> listFavoriteCompanies(Long userId, int page, int size) {
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
         var p = favoriteCompanyRepository.findByUsers_Id(userId, pageable);
@@ -222,13 +290,17 @@ public class MyPageService {
         return new PagedResponse<>(items, p.getNumber(), p.getSize(), p.getTotalElements(), p.getTotalPages());
     }
 
-    // ===== 즐겨찾기: 삭제 D =====
+    /**
+     * ✅ 즐겨찾기 삭제 (기업)
+     */
     @Transactional
     public void removeFavoriteCompany(Long userId, Long companyId) {
         favoriteCompanyRepository.deleteByUsers_IdAndCompany_Id(userId, companyId);
     }
 
-    // ===== 변환 =====
+    /**
+     * 즐겨찾기 엔티티 → DTO 변환
+     */
     private FavoriteCompanySummaryDto toSummary(FavoriteCompany fc) {
         var company = fc.getCompany();
         long openCount = (company != null && company.getId() != null)
@@ -243,21 +315,25 @@ public class MyPageService {
         );
     }
 
+    /* ==========================================================
+       =============== [5] 채용공고 지원 로직 ===============
+       ========================================================== */
+
+    /**
+     * ✅ 채용공고 지원
+     *    - 지원 시 이력서를 잠금 처리(lock)
+     */
     @Transactional
     public ApplyResponse applyToJob(Long userId, Long jobPostId, Long resumeId) {
-        // 이력서 조회 및 소유권 확인
         Resume resume = resumeRepository.findByIdAndUsers_Id(resumeId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("이력서를 찾을 수 없습니다."));
 
-        // 공고 조회
         JobPosts jobPost = jobPostsRepository.findById(jobPostId)
                 .orElseThrow(() -> new ResourceNotFoundException("공고를 찾을 수 없습니다."));
 
-        // 이력서 잠금 (제출 후 수정 불가)
         resume.setLocked(true);
         resumeRepository.save(resume);
 
-        // 지원 내역 생성
         Apply apply = Apply.builder()
                 .resume(resume)
                 .jobPosts(jobPost)

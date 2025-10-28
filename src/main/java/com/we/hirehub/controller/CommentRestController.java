@@ -1,10 +1,7 @@
 package com.we.hirehub.controller;
 
 import com.we.hirehub.dto.CommentDto;
-import com.we.hirehub.entity.Board;
-import com.we.hirehub.entity.Comments;
 import com.we.hirehub.entity.Users;
-import com.we.hirehub.repository.BoardRepository;
 import com.we.hirehub.repository.CommentRepository;
 import com.we.hirehub.repository.UsersRepository;
 import com.we.hirehub.service.CommentService;
@@ -64,9 +61,6 @@ public class CommentRestController {
                     .body("댓글 등록 실패: " + e.getMessage());
         }
     }
-
-
-
     /**
      * 댓글 삭제
      */
