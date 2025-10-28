@@ -64,7 +64,7 @@ public class MyPageService {
     }
 
     /**
-     * ✅ 이력서 생성
+     * ✅ 이력서 생성 (가변 섹션 포함)
      */
     @Transactional
     public ResumeDto create(Long userId, ResumeUpsertRequest req) {
@@ -76,6 +76,7 @@ public class MyPageService {
                 .idPhoto(req.idPhoto())
                 .essayTittle(req.essayTitle())
                 .essayContent(req.essayContent())
+                .htmlContent(req.htmlContent()) // ✅ 학력/경력/자격증/스킬/언어 JSON 포함
                 .createAt(LocalDate.now())
                 .updateAt(LocalDate.now())
                 .locked(false)
@@ -87,7 +88,7 @@ public class MyPageService {
     }
 
     /**
-     * ✅ 이력서 수정
+     * ✅ 이력서 수정 (가변 섹션 포함)
      */
     @Transactional
     public ResumeDto update(Long userId, Long resumeId, ResumeUpsertRequest req) {
@@ -104,6 +105,7 @@ public class MyPageService {
         resume.setIdPhoto(req.idPhoto());
         resume.setEssayTittle(req.essayTitle());
         resume.setEssayContent(req.essayContent());
+        resume.setHtmlContent(req.htmlContent()); // ✅ 추가됨 (가변 섹션 저장)
         resume.setUpdateAt(LocalDate.now());
 
         Resume updated = resumeRepository.save(resume);
