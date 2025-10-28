@@ -24,9 +24,7 @@ public class BoardService {
     private final UsersRepository usersRepository;
     private final CommentRepository commentRepository;
 
-    /**
-     * 게시글 생성 (with Users object)
-     */
+    /** 게시글 생성 (with Users object) */
     @Transactional
     public Board createBoard(String title, String content, Users user) {
         Board board = Board.builder()
@@ -37,18 +35,14 @@ public class BoardService {
                 .updateAt(LocalDateTime.now())
                 .views(0L)
                 .build();
-
         return boardRepository.save(board);
     }
 
-    /**
-     * 게시글 생성 (with userId)
-     */
+    /** 게시글 생성 (with userId) */
     @Transactional
     public Board createBoardWithUserId(String title, String content, Long userId) {
         Users user = usersRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
-
         Board board = Board.builder()
                 .title(title)
                 .content(content)
@@ -57,28 +51,21 @@ public class BoardService {
                 .updateAt(LocalDateTime.now())
                 .views(0L)
                 .build();
-
         return boardRepository.save(board);
     }
 
-    /**
-     * 게시글 수정
-     */
+    /** 게시글 수정 */
     @Transactional
     public BoardDto updateBoard(Long boardId, BoardRequestDto requestDto) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
-
         board.setTitle(requestDto.getTitle());
         board.setContent(requestDto.getContent());
         board.setUpdateAt(LocalDateTime.now());
-
         return toDto(boardRepository.save(board));
     }
 
-    /**
-     * 게시글 삭제
-     */
+    /** 게시글 삭제 */
     @Transactional
     public void deleteBoard(Long boardId) {
         Board board = boardRepository.findById(boardId)
@@ -86,45 +73,31 @@ public class BoardService {
         boardRepository.delete(board);
     }
 
-    /**
-     * 단일 게시글 조회 + 조회수 증가
-     */
+    /** 단일 게시글 조회 + 조회수 증가 */
     @Transactional
     public BoardDto getBoard(Long boardId) {
         Board board = boardRepository.findById(boardId)
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
-
         board.setViews(board.getViews() + 1L);
         boardRepository.save(board);
-
         return toDto(board);
     }
 
-    /**
-     * 전체 게시글 조회 (최신순)
-     */
+    /** 전체 게시글 조회 (최신순) */
     @Transactional(readOnly = true)
     public List<BoardDto> getAllBoards() {
         return boardRepository.findAllByOrderByCreateAtDesc()
-                .stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+                .stream().map(this::toDto).collect(Collectors.toList());
     }
 
-    /**
-     * 인기 게시물 조회 (조회수 기준 상위 5개)
-     */
+    /** 인기 게시물 조회 (조회수 기준 상위 5개) */
     @Transactional(readOnly = true)
     public List<BoardDto> getPopularBoards() {
         return boardRepository.findTop5ByOrderByViewsDesc()
-                .stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+                .stream().map(this::toDto).collect(Collectors.toList());
     }
 
-    /**
-     * 조회수만 증가
-     */
+    /** 조회수만 증가 */
     @Transactional
     public BoardDto incrementView(Long boardId) {
         Board board = boardRepository.findById(boardId)
@@ -133,16 +106,17 @@ public class BoardService {
         return toDto(boardRepository.save(board));
     }
 
-    /**
-     * Board → BoardDto 변환
-     * 댓글은 CommentRepository를 통해 별도로 가져옴
-     */
+    /** ✅ (신규) 내가 쓴 게시글 조회 (최신순) */
+    @Transactional(readOnly = true)
+    public List<BoardDto> getMyBoards(Long userId) {
+        return boardRepository.findByUsers_IdOrderByCreateAtDesc(userId)
+                .stream().map(this::toDto).collect(Collectors.toList());
+    }
+
+    /** Board → BoardDto 변환 (댓글 포함) */
     private BoardDto toDto(Board board) {
         List<CommentDto> commentDtos = commentRepository.findByBoardId(board.getId())
-                .stream()
-                .map(CommentDto::fromEntity)
-                .collect(Collectors.toList());
-
+                .stream().map(CommentDto::fromEntity).collect(Collectors.toList());
         return BoardDto.builder()
                 .id(board.getId())
                 .title(board.getTitle())
@@ -156,13 +130,10 @@ public class BoardService {
                 .build();
     }
 
-    /**
-     * 게시글 엔티티 조회 (삭제/권한 체크용)
-     */
+    /** 엔티티 조회 (삭제/권한 체크용) */
     @Transactional(readOnly = true)
     public Board getBoardEntity(Long boardId) {
         return boardRepository.findById(boardId)
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
     }
-
 }
