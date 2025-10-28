@@ -3,6 +3,7 @@ package com.we.hirehub.controller;
 import com.we.hirehub.dto.CommentDto;
 import com.we.hirehub.entity.Users;
 import com.we.hirehub.repository.CommentRepository;
+import com.we.hirehub.repository.UsersRepository;
 import com.we.hirehub.service.CommentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,35 +21,46 @@ import java.util.stream.Collectors;
 public class CommentRestController {
     private final CommentService commentService;
     private final CommentRepository commentRepository;
+    private final UsersRepository usersRepository;
 
     /**
      * 댓글 생성
      */
     @PostMapping
     public ResponseEntity<?> createComment(@RequestBody CommentDto commentDto,
-                                           @AuthenticationPrincipal Users loggedInUser) {
-        System.out.println("POST /api/comment 요청 수신: " + commentDto);
-        System.out.println("Authentication: " + (loggedInUser != null ? loggedInUser.getId() : "null"));
+                                           @AuthenticationPrincipal Long userId) {
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("로그인된 사용자만 댓글을 작성할 수 있습니다.");
+        }
+
         try {
-            if (loggedInUser == null) {
-                System.out.println("⚠️ 로그인 안됨 - 테스트용 더미 유저 사용");
-                CommentDto createdComment = commentService.createCommentWithUserId(
-                        commentDto.getContent(),
-                        commentDto.getBoardId(),
-                        commentDto.getParentCommentId(),
-                        1L // 실제 DB에 존재하는 userId
-                );
-                return ResponseEntity.ok(createdComment);
+            // ✅ 로그인한 유저 조회
+            Users loggedInUser = usersRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("유저를 찾을 수 없습니다."));
+
+            // ✅ 필수 데이터 검증
+            if (commentDto.getBoardId() == null) {
+                return ResponseEntity.badRequest().body("게시글 ID가 누락되었습니다.");
             }
-            CommentDto createdComment = commentService.createComment(commentDto, loggedInUser);
-            return ResponseEntity.ok(createdComment);
+            if (commentDto.getContent() == null || commentDto.getContent().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("댓글 내용이 비어 있습니다.");
+            }
+
+            // ✅ 댓글 생성 (서비스 계층에 위임)
+            CommentDto savedComment = commentService.createComment(commentDto, loggedInUser);
+
+            // ✅ 성공 응답 (저장된 댓글 DTO 반환)
+            return ResponseEntity.ok(savedComment);
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("댓글 등록 실패: " + e.getMessage());
         }
     }
-
     /**
      * 댓글 삭제
      */
