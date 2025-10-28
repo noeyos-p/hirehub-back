@@ -156,4 +156,13 @@ public class BoardService {
                 .build();
     }
 
+    /**
+     * 게시글 엔티티 조회 (삭제/권한 체크용)
+     */
+    @Transactional(readOnly = true)
+    public Board getBoardEntity(Long boardId) {
+        return boardRepository.findById(boardId)
+                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
+    }
+
 }
