@@ -92,6 +92,25 @@ public class MyPageRestController {
         return ResponseEntity.ok(myPageService.getMyApplyList(userId(auth)));
     }
 
+    @PostMapping("/applies")
+    public ResponseEntity<ApplyResponse> applyToJob(
+            Authentication auth,
+            @RequestBody ApplyRequest request
+    ) {
+        ApplyResponse response = myPageService.applyToJob(
+                userId(auth),
+                request.jobPostId(),
+                request.resumeId()
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    // ApplyRequest.java
+    public record ApplyRequest(
+            Long jobPostId,
+            Long resumeId
+    ) {}
+
     // ====== 기업 즐겨찾기 CRUD ======
 
 
