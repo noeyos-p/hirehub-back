@@ -24,6 +24,7 @@ public class JobPostsDto {
     private String companyName;
     private Long companyId;  // ⭐ 이 필드 추가
     private CompanyDto company;
+    private Integer views;
 
     // ✅ 내부 클래스 추가
     @Getter
