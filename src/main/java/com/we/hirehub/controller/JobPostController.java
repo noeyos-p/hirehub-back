@@ -3,6 +3,7 @@ package com.we.hirehub.controller;
 
 import com.we.hirehub.dto.*;
 import com.we.hirehub.service.JobPostScrapService;
+import com.we.hirehub.service.JobPostServiceImpl;
 import com.we.hirehub.service.JobPostsCalendarService;
 import com.we.hirehub.service.JobPostsService;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class JobPostController {
     private final JobPostsService jobPostService;
     private final JobPostScrapService jobPostScrapService;
     private final JobPostsCalendarService jobPostsCalendarService;
+    private final JobPostServiceImpl jobPostServiceImpl;
 
 
 
@@ -99,6 +101,11 @@ public class JobPostController {
             @RequestParam LocalDate to
     ) {
         return jobPostsCalendarService.getCalendarCounts(from, to);
+    }
+
+    @PostMapping("/{id}/views")
+    public JobPostsDto incrementViews(@PathVariable Long id) {
+        return jobPostServiceImpl.incrementViews(id);
     }
 }
 

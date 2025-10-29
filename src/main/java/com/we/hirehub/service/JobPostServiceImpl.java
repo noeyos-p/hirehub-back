@@ -33,6 +33,7 @@ public class JobPostServiceImpl implements JobPostsService {
                 .salary(job.getSalary())
                 .companyName(job.getCompany().getName())
                 .companyId(job.getCompany().getId())  // ⭐ 추가
+                .views(job.getViews())
                 .build();
     }
 
@@ -91,4 +92,17 @@ public class JobPostServiceImpl implements JobPostsService {
 
         return convertToDto(saved);
     }
+
+    @Override
+    public JobPostsDto incrementViews(Long id) {
+        JobPosts job = jobPostRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("해당 공고를 찾을 수 없습니다."));
+
+        job.setViews(job.getViews() + 1); // 조회수 증가
+        JobPosts saved = jobPostRepository.save(job);
+
+        return convertToDto(saved);
+    }
+
+
 }
