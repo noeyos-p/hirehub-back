@@ -30,5 +30,7 @@ public class LiveChat {
     @JoinColumn(name = "session_id")
     private Session session;
 
-
+    @ManyToOne(fetch = FetchType.LAZY)  // 추가!
+    @JoinColumn(name = "user_id")
+    private Users user;
 }
