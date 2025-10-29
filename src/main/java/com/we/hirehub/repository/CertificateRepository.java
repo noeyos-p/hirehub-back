@@ -8,6 +8,5 @@ import java.util.List;
 
 public interface CertificateRepository extends JpaRepository<Certificate, Long> {
     List<Certificate> findByResumeId(Long resumeId);
-    @Transactional
     void deleteByResumeId(Long resumeId);
 }
