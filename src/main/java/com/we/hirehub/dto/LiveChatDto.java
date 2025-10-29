@@ -10,4 +10,5 @@ public class LiveChatDto {
     private String content;
     private LocalDateTime createAt;
     private String sessionId; // LiveChat.session (@ManyToOne) -> Session.id
+    private String nickname;  // 추가
 }

@@ -53,6 +53,9 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
+
+                        // WebSocket 엔드포인트 허용 추가
+                        .requestMatchers("/ws/**").permitAll()
                         // 공개 API (인증 불필요)
                         .requestMatchers("/api/auth/**", "/error").permitAll()
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
