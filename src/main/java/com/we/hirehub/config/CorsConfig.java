@@ -28,6 +28,7 @@ public class CorsConfig {
         c.addAllowedOrigin("http://localhost:3000");
         c.addAllowedMethod("*");
         c.addAllowedHeader("*");
+        c.setAllowedOriginPatterns(List.of("*")); // 테스트용으로 모두 허용
         c.setAllowCredentials(true);
         c.setMaxAge(3600L);
 
