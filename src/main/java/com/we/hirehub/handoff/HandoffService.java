@@ -1,31 +1,48 @@
 package com.we.hirehub.handoff;
 
-import com.we.hirehub.dto.HandoffDto; // ✅ dto 폴더의 DTO 사용
+import com.we.hirehub.dto.HandoffDto;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * 상담사 핸드오프 요청/조회 Service (메모리 스텁)
+ * - 엔티티 변경 없이 동작 확인용
+ * - 실제 저장소 연동 전까지는 in-memory / no-op
+ */
 @Service
 public class HandoffService {
 
-    public List<HandoffDto> findPendingByRoomId(String roomId){
+    /** roomId로 PENDING 요청을 조회 (테스트용 빈 리스트 반환) */
+    public List<HandoffDto> findPendingByRoomId(String roomId) {
         return Collections.emptyList();
     }
 
-    public HandoffDto create(HandoffRequest req){
-        // dto 폴더의 HandoffDto는 아래 5개 String 필드를 가짐:
-        // id, roomId, userId, status, lastMessage
-        // id/lastMessage는 생성 시점에 없으니 null 처리.
-        // userId는 우선 agentId를 문자열로 넣어 둠(요구에 맞게 나중에 교체 가능).
+    /** 핸드오프 요청 생성 (테스트용 DTO만 만들어 반환) */
+    public HandoffDto create(HandoffRequest req) {
         return HandoffDto.builder()
-                .id(null)
-                .roomId(req.roomId())
-                .userId(req.agentId() == null ? null : String.valueOf(req.agentId()))
+                .id(null)                  // 아직 DB 미연동
+                .roomId(req.getRoomId())
+                .userId(req.getUserId())   // 요청자가 보낸 userId 문자열
                 .status("PENDING")
-                .lastMessage(null)
+                .lastMessage(req.getMessage())
                 .build();
     }
 
-    public record HandoffRequest(String roomId, Long agentId){}
+    /** 컨트롤러에서 바인딩되는 요청 바디 */
+    public static class HandoffRequest {
+        private String roomId;
+        private String userId;
+        private String message;
+
+        public String getRoomId() { return roomId; }
+        public void setRoomId(String roomId) { this.roomId = roomId; }
+
+        public String getUserId() { return userId; }
+        public void setUserId(String userId) { this.userId = userId; }
+
+        public String getMessage() { return message; }
+        public void setMessage(String message) { this.message = message; }
+    }
 }
