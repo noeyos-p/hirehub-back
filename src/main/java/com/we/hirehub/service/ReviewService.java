@@ -6,9 +6,9 @@ import com.we.hirehub.entity.Review;
 import com.we.hirehub.entity.Users;
 import com.we.hirehub.repository.CompanyRepository;
 import com.we.hirehub.repository.ReviewRepository;
-import com.we.hirehub.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -18,16 +18,19 @@ import java.util.stream.Collectors;
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
-    private final UsersRepository usersRepository;
     private final CompanyRepository companyRepository;
 
-    /** 리뷰 등록 */
-    public Review addReview(ReviewDto dto) {
-        Users user = usersRepository.findById(dto.getUsersId())
-                .orElseThrow(() -> new RuntimeException("유저가 존재하지 않습니다."));
+    /**
+     * ✅ 리뷰 등록 (JWT 로그인 유저 기반)
+     * usersId는 프론트에서 받지 않고, SecurityContext에서 가져온 Users 엔티티를 직접 사용
+     */
+    @Transactional
+    public Review addReview(ReviewDto dto, Users user) {
+        // 회사 정보 조회
         Company company = companyRepository.findById(dto.getCompanyId())
                 .orElseThrow(() -> new RuntimeException("회사 정보가 존재하지 않습니다."));
 
+        // 리뷰 생성
         Review review = Review.builder()
                 .score(dto.getScore())
                 .content(dto.getContent())
