@@ -28,6 +28,7 @@ public class JobPostServiceImpl implements JobPostsService {
                 .location(job.getLocation())
                 .careerLevel(job.getCareerLevel())
                 .education(job.getEducation())
+                .position(job.getPosition())
                 .type(job.getType())
                 .salary(job.getSalary())
                 .companyName(job.getCompany().getName())
@@ -79,6 +80,7 @@ public class JobPostServiceImpl implements JobPostsService {
                 .location(dto.getLocation())
                 .careerLevel(dto.getCareerLevel())
                 .education(dto.getEducation())
+                .position(dto.getPosition())
                 .type(dto.getType())
                 .salary(dto.getSalary())
                 .company(company) // Company 객체 연결
