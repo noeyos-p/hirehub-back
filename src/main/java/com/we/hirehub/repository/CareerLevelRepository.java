@@ -8,6 +8,5 @@ import java.util.List;
 
 public interface CareerLevelRepository extends JpaRepository<CareerLevel, Long> {
     List<CareerLevel> findByResumeId(Long resumeId);
-    @Transactional
     void deleteByResumeId(Long resumeId);
 }
