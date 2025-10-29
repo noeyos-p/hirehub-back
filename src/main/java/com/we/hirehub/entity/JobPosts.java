@@ -69,4 +69,7 @@ public class JobPosts {
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
+    @Column(nullable = false)
+    private Integer views = 0; // 조회수 기본값 0
+
 }
