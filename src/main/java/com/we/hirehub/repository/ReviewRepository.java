@@ -12,9 +12,18 @@ import java.util.List;
 
 @Repository
 public interface ReviewRepository extends JpaRepository<Review, Long> {
-    // 페이징으로 모든 리뷰 조회
+
+    /** ✅ 모든 리뷰 페이징 조회 */
     Page<Review> findAll(Pageable pageable);
+
+    /** ✅ 특정 회사 리뷰 전체 조회 (페이징 X) */
     List<Review> findByCompanyId(Long companyId);
+
+    /** ✅ 특정 회사 리뷰 페이징 조회 (최신순 정렬) */
     @Query("SELECT r FROM Review r WHERE r.company.id = :companyId ORDER BY r.id DESC")
     Page<Review> findByCompanyId(@Param("companyId") Long companyId, Pageable pageable);
+
+    /** ✅ 특정 회사 평균 별점 계산 */
+    @Query("SELECT AVG(r.score) FROM Review r WHERE r.company.id = :companyId")
+    Double findAverageScoreByCompanyId(@Param("companyId") Long companyId);
 }

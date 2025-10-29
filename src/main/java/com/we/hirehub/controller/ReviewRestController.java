@@ -19,11 +19,19 @@ public class ReviewRestController {
     private final ReviewService reviewService;
     private final CompanyRepository companyRepository;
 
+    /** 리뷰 등록 */
     @PostMapping
-    public Review createReview(@RequestBody ReviewDto dto) {
-        return reviewService.addReview(dto);
+    public ReviewDto createReview(@RequestBody ReviewDto dto) {
+        Review saved = reviewService.addReview(dto);
+        return ReviewDto.builder()
+                .id(saved.getId())
+                .score(saved.getScore())
+                .content(saved.getContent())
+                .usersId(saved.getUsers().getId())
+                .nickname(saved.getUsers().getNickname())
+                .companyId(saved.getCompany().getId())
+                .build();
     }
-
 
     /** 전체 리뷰 조회 */
     @GetMapping
@@ -31,23 +39,29 @@ public class ReviewRestController {
         return reviewService.getAllReviews();
     }
 
-    // 수정
     /** 특정 회사 리뷰 조회 */
     @GetMapping("/company/{companyName}")
     public ResponseEntity<List<ReviewDto>> getReviewsByCompany(@PathVariable String companyName) {
-        // 1️⃣ 회사 이름으로 조회 (리스트로 받음)
         List<Company> companies = companyRepository.findByName(companyName);
-
         if (companies.isEmpty()) {
-            return ResponseEntity.notFound().build(); // 회사 없으면 404
+            return ResponseEntity.notFound().build();
         }
 
-        // 2️⃣ 첫 번째 회사만 사용 (DB에 같은 이름이 여러 개라도 첫 번째만)
         Company company = companies.get(0);
-
-        // 3️⃣ 리뷰 조회
         List<ReviewDto> reviews = reviewService.getReviewsByCompany(company.getId());
-
         return ResponseEntity.ok(reviews);
+    }
+
+    /** 특정 회사 평균 별점 조회 */
+    @GetMapping("/company/{companyName}/average")
+    public ResponseEntity<Double> getAverageScore(@PathVariable String companyName) {
+        List<Company> companies = companyRepository.findByName(companyName);
+        if (companies.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Company company = companies.get(0);
+        Double avgScore = reviewService.getAverageScore(company.getId());
+        return ResponseEntity.ok(avgScore);
     }
 }

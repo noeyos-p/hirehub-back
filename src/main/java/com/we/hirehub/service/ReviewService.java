@@ -21,6 +21,7 @@ public class ReviewService {
     private final UsersRepository usersRepository;
     private final CompanyRepository companyRepository;
 
+    /** 리뷰 등록 */
     public Review addReview(ReviewDto dto) {
         Users user = usersRepository.findById(dto.getUsersId())
                 .orElseThrow(() -> new RuntimeException("유저가 존재하지 않습니다."));
@@ -37,7 +38,6 @@ public class ReviewService {
         return reviewRepository.save(review);
     }
 
-
     /** 전체 리뷰 조회 */
     public List<ReviewDto> getAllReviews() {
         return reviewRepository.findAll().stream()
@@ -52,6 +52,12 @@ public class ReviewService {
                 .collect(Collectors.toList());
     }
 
+    /** 특정 회사의 평균 별점 조회 */
+    public Double getAverageScore(Long companyId) {
+        Double avg = reviewRepository.findAverageScoreByCompanyId(companyId);
+        return avg != null ? Math.round(avg * 10) / 10.0 : 0.0; // 소수점 1자리 반올림
+    }
+
     /** 엔티티 → DTO 변환 */
     private ReviewDto convertToDto(Review review) {
         return ReviewDto.builder()
@@ -59,6 +65,7 @@ public class ReviewService {
                 .score(review.getScore())
                 .content(review.getContent())
                 .usersId(review.getUsers().getId())
+                .nickname(review.getUsers().getNickname())
                 .companyId(review.getCompany().getId())
                 .build();
     }
