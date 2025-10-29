@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -40,123 +41,116 @@ public class LiveChatService {
 
         return chats.stream()
                 .sorted((a, b) -> a.getCreateAt().compareTo(b.getCreateAt()))
-                .map(chat -> toLiveChatDto(chat))
+                .map(this::toLiveChatDto)
                 .collect(Collectors.toList());
     }
 
+    // 기존 메서드 (3개 파라미터) - 호환성 유지
     @Transactional
     public void send(String sessionId, String content, String requestNickname) {
-        // 1. Session 가져오기 또는 생성
+        // SecurityContextHolder에서 사용자 조회
+        Users user = null;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
+            String email = auth.getName();
+            user = usersRepository.findByEmail(email).orElse(null);
+        }
+
+        // 새로운 메서드 호출
+        send(sessionId, content, requestNickname, user);
+    }
+
+    // 새로운 메서드 (4개 파라미터) - 사용자 객체 직접 전달
+    @Transactional
+    public void send(String sessionId, String content, String requestNickname, Users authenticatedUser) {
+        log.info("=== 채팅 메시지 전송 시작 ===");
+        log.info("sessionId: {}, content: {}, requestNickname: {}", sessionId, content, requestNickname);
+        log.info("전달받은 authenticatedUser: {}", authenticatedUser != null ? authenticatedUser.getId() : "null");
+
+        // 1. Session 조회/생성
         Session session = sessionRepository.findById(sessionId)
                 .orElseGet(() -> {
-                    Session newSession = new Session();
-                    newSession.setId(sessionId);
-                    newSession.setCtx(new HashMap<>());
-                    return sessionRepository.save(newSession);
+                    Session newSession = Session.builder()
+                            .id(sessionId)
+                            .ctx(new HashMap<>())
+                            .build();
+                    return sessionRepository.saveAndFlush(newSession);
                 });
 
-        // 2. 현재 로그인한 사용자 가져오기
-        Users user = null;
+        // 2. 사용자 및 닉네임 결정
+        Users user = authenticatedUser;
         String finalNickname = "익명";
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()
-                && !"anonymousUser".equals(authentication.getName())) {
+        if (user != null) {
+            log.info("✅ 인증된 사용자 - ID: {}, 닉네임: {}, 이름: {}",
+                    user.getId(), user.getNickname(), user.getName());
 
-            String email = authentication.getName();
-            user = usersRepository.findByEmail(email).orElse(null);
-
-            if (user != null) {
-                finalNickname = user.getNickname() != null && !user.getNickname().isEmpty()
-                        ? user.getNickname()
-                        : (user.getName() != null && !user.getName().isEmpty() ? user.getName() : "익명");
+            // DB의 닉네임 우선 사용
+            finalNickname = Optional.ofNullable(user.getNickname())
+                    .filter(n -> !n.trim().isEmpty())
+                    .orElse(Optional.ofNullable(user.getName())
+                            .filter(n -> !n.trim().isEmpty())
+                            .orElse("익명"));
+        } else {
+            log.warn("❌ 인증되지 않은 사용자");
+            // 요청에서 닉네임이 전달된 경우 사용
+            if (requestNickname != null && !requestNickname.trim().isEmpty()) {
+                finalNickname = requestNickname.trim();
+                log.info("익명 사용자 - 요청 닉네임 사용: {}", finalNickname);
             }
         }
 
-        // 3. 요청에서 nickname 있으면 우선 사용
-        if (requestNickname != null && !requestNickname.trim().isEmpty()) {
-            finalNickname = requestNickname.trim();
-        }
+        log.info("최종 닉네임: {}, User ID: {}", finalNickname, user != null ? user.getId() : "null");
 
-        // 4. LiveChat 저장 (user_id 포함!)
+        // 3. 메시지 저장
         LiveChat chat = LiveChat.builder()
                 .session(session)
                 .content(content)
                 .createAt(LocalDateTime.now())
-                .user(user)  // ← 여기가 핵심! user_id 저장
+                .user(user)
                 .build();
 
-        LiveChat saved = liveChatRepository.save(chat);
+        LiveChat saved = liveChatRepository.saveAndFlush(chat);
+        log.info("✅ 메시지 저장 완료 - ID: {}, User ID: {}",
+                saved.getId(),
+                saved.getUser() != null ? saved.getUser().getId() : "null");
 
-        // 5. DTO 생성 (nickname은 user에서 가져오거나 request에서)
+        // 4. DTO 생성 및 전송
         LiveChatDto dto = LiveChatDto.builder()
                 .id(saved.getId())
                 .content(saved.getContent())
                 .createAt(saved.getCreateAt())
                 .sessionId(saved.getSession().getId())
+                .userId(user != null ? user.getId() : null)  // ← userId 추가
                 .nickname(finalNickname)
                 .build();
 
-        // 6. WebSocket 브로드캐스트
+        log.info("📤 WebSocket으로 전송할 DTO: id={}, userId={}, nickname={}",
+                dto.getId(), dto.getUserId(), dto.getNickname());
+        log.info("전송 대상 토픽: /topic/rooms/{}", sessionId);
+
+        // 5. WebSocket으로 메시지 브로드캐스트
         messagingTemplate.convertAndSend("/topic/rooms/" + sessionId, dto);
-    }
 
-    private String getNickname(String requestNickname) {
-        // 1. 요청에서 닉네임이 있으면 사용
-        if (requestNickname != null && !requestNickname.isEmpty()) {
-            return requestNickname;
-        }
-
-        // 2. 현재 로그인한 사용자 정보 가져오기
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            log.info("인증 정보: {}", authentication);
-
-            if (authentication != null && authentication.isAuthenticated()) {
-                String principal = authentication.getName();
-                log.info("인증된 사용자 Principal: {}", principal);
-
-                if (principal != null && !principal.equals("anonymousUser")) {
-                    // 이메일로 사용자 조회
-                    Users user = usersRepository.findByEmail(principal).orElse(null);
-
-                    if (user != null) {
-                        log.info("사용자 찾음 - ID: {}, 닉네임: {}, 이름: {}",
-                                user.getId(), user.getNickname(), user.getName());
-
-                        // 닉네임 우선, 없으면 이름 사용
-                        if (user.getNickname() != null && !user.getNickname().isEmpty()) {
-                            return user.getNickname();
-                        }
-                        if (user.getName() != null && !user.getName().isEmpty()) {
-                            return user.getName();
-                        }
-                    } else {
-                        log.warn("사용자를 찾을 수 없음: {}", principal);
-                    }
-                }
-            } else {
-                log.warn("인증 정보가 없거나 인증되지 않음");
-            }
-        } catch (Exception e) {
-            log.error("닉네임 가져오기 실패", e);
-        }
-
-        // 3. 모두 실패하면 익명
-        return "익명";
+        log.info("=== 채팅 메시지 전송 완료 ===");
     }
 
     private LiveChatDto toLiveChatDto(LiveChat chat) {
-        String nickname = "익명";
-
-        if (chat.getUser() != null) {
-            nickname = chat.getUser().getNickname() != null && !chat.getUser().getNickname().isEmpty()
-                    ? chat.getUser().getNickname()
-                    : (chat.getUser().getName() != null ? chat.getUser().getName() : "익명");
-        } else if (chat.getSession() != null && chat.getSession().getCtx() != null) {
-            // fallback: ctx에서 가져오기
-            nickname = (String) chat.getSession().getCtx().getOrDefault("lastUserNickname", "익명");
-        }
+        // User 엔티티에서 nickname 조회
+        String nickname = Optional.ofNullable(chat.getUser())
+                .map(u -> {
+                    // nickname이 있으면 nickname 사용
+                    if (u.getNickname() != null && !u.getNickname().trim().isEmpty()) {
+                        return u.getNickname();
+                    }
+                    // nickname이 없으면 name 사용
+                    if (u.getName() != null && !u.getName().trim().isEmpty()) {
+                        return u.getName();
+                    }
+                    return "익명";
+                })
+                .orElse("익명");
 
         return LiveChatDto.builder()
                 .id(chat.getId())

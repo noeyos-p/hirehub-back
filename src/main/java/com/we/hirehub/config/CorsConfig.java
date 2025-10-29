@@ -25,6 +25,10 @@ public class CorsConfig {
         c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         c.setAllowedHeaders(List.of("*"));
         c.setAllowCredentials(true);
+        c.addAllowedOrigin("http://localhost:3000");
+        c.addAllowedMethod("*");
+        c.addAllowedHeader("*");
+        c.setAllowCredentials(true);
         c.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource s = new UrlBasedCorsConfigurationSource();
