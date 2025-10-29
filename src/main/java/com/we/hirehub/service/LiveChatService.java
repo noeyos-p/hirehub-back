@@ -45,8 +45,8 @@ public class LiveChatService {
     }
 
     @Transactional
-    public void send(String sessionId, String content, String nickname) {
-        // Session 가져오기 또는 생성
+    public void send(String sessionId, String content, String requestNickname) {
+        // 1. Session 가져오기 또는 생성
         Session session = sessionRepository.findById(sessionId)
                 .orElseGet(() -> {
                     Session newSession = new Session();
@@ -55,38 +55,49 @@ public class LiveChatService {
                     return sessionRepository.save(newSession);
                 });
 
-        // 닉네임 가져오기
-        String finalNickname = getNickname(nickname);
-        log.info("채팅 메시지 전송 - 닉네임: {}, 내용: {}", finalNickname, content);
+        // 2. 현재 로그인한 사용자 가져오기
+        Users user = null;
+        String finalNickname = "익명";
 
-        // Session의 ctx에 현재 사용자 닉네임 저장 (임시 저장소로 활용)
-        if (session.getCtx() == null) {
-            session.setCtx(new HashMap<>());
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()
+                && !"anonymousUser".equals(authentication.getName())) {
+
+            String email = authentication.getName();
+            user = usersRepository.findByEmail(email).orElse(null);
+
+            if (user != null) {
+                finalNickname = user.getNickname() != null && !user.getNickname().isEmpty()
+                        ? user.getNickname()
+                        : (user.getName() != null && !user.getName().isEmpty() ? user.getName() : "익명");
+            }
         }
-        Map<String, Object> ctx = session.getCtx();
 
-        // 메시지별 닉네임을 ctx에 저장 (메시지 ID를 키로 사용)
-        // 또는 간단하게 마지막 사용자 닉네임만 저장
-        ctx.put("lastUserNickname", finalNickname);
-        sessionRepository.save(session);
+        // 3. 요청에서 nickname 있으면 우선 사용
+        if (requestNickname != null && !requestNickname.trim().isEmpty()) {
+            finalNickname = requestNickname.trim();
+        }
 
-        // LiveChat 저장
-        LiveChat chat = new LiveChat();
-        chat.setSession(session);
-        chat.setContent(content);
-        chat.setCreateAt(LocalDateTime.now());
+        // 4. LiveChat 저장 (user_id 포함!)
+        LiveChat chat = LiveChat.builder()
+                .session(session)
+                .content(content)
+                .createAt(LocalDateTime.now())
+                .user(user)  // ← 여기가 핵심! user_id 저장
+                .build();
+
         LiveChat saved = liveChatRepository.save(chat);
 
-        // DTO로 변환 시 닉네임 포함
+        // 5. DTO 생성 (nickname은 user에서 가져오거나 request에서)
         LiveChatDto dto = LiveChatDto.builder()
                 .id(saved.getId())
                 .content(saved.getContent())
                 .createAt(saved.getCreateAt())
                 .sessionId(saved.getSession().getId())
-                .nickname(finalNickname)  // 방금 가져온 닉네임 사용
+                .nickname(finalNickname)
                 .build();
 
-        // WebSocket으로 전송
+        // 6. WebSocket 브로드캐스트
         messagingTemplate.convertAndSend("/topic/rooms/" + sessionId, dto);
     }
 
@@ -136,14 +147,15 @@ public class LiveChatService {
     }
 
     private LiveChatDto toLiveChatDto(LiveChat chat) {
-        // 기존 메시지의 경우 Session ctx에서 닉네임 가져오기 시도
         String nickname = "익명";
 
-        if (chat.getSession() != null && chat.getSession().getCtx() != null) {
-            Map<String, Object> ctx = chat.getSession().getCtx();
-            if (ctx.containsKey("lastUserNickname")) {
-                nickname = (String) ctx.get("lastUserNickname");
-            }
+        if (chat.getUser() != null) {
+            nickname = chat.getUser().getNickname() != null && !chat.getUser().getNickname().isEmpty()
+                    ? chat.getUser().getNickname()
+                    : (chat.getUser().getName() != null ? chat.getUser().getName() : "익명");
+        } else if (chat.getSession() != null && chat.getSession().getCtx() != null) {
+            // fallback: ctx에서 가져오기
+            nickname = (String) chat.getSession().getCtx().getOrDefault("lastUserNickname", "익명");
         }
 
         return LiveChatDto.builder()
