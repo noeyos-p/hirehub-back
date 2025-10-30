@@ -42,4 +42,6 @@ public interface BoardRepository extends JpaRepository<Board, Long> {
 
     /** 특정 사용자 게시글 페이징 — 필요 시 사용 */
     Page<Board> findByUsers_Id(Long usersId, Pageable pageable);
+
+    List<Board> findByTitleContainingOrContentContaining(String title, String content);
 }

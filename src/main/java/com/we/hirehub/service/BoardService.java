@@ -137,4 +137,11 @@ public class BoardService {
                 .comments(commentDtos)
                 .build();
     }
+
+    public List<BoardDto> searchBoards(String keyword) {
+        List<Board> boards = boardRepository.findByTitleContainingOrContentContaining(keyword, keyword);
+        return boards.stream()
+                .map(this::toDto)  // convertToDto → toDto로 변경
+                .collect(Collectors.toList());
+    }
 }
